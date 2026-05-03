@@ -503,9 +503,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
       <option value="XRPUSDT">XRP/USDT — Ripple</option>
     </optgroup>
     <optgroup label="── Forex &amp; Ouro ──">
-      <option value="XAUUSD">XAU/USD — Ouro</option>
-      <option value="EURUSD">EUR/USD — Euro</option>
-      <option value="GBPUSD">GBP/USD — Libra</option>
+      <option value="PAXGUSDT">XAU/USD — Ouro</option>
+      <option value="EURUSDT">EUR/USD — Euro</option>
+      <option value="GBPUSDT">GBP/USD — Libra</option>
     </optgroup>
   </select>
   <span class="clbl">Timeframe</span>
@@ -626,21 +626,19 @@ const STRATS=[
   {id:'bb',   ico:'⊙',clr:'#fde68a',name:'BB Squeeze',  vname:'Bollinger Bands'},
 ];
 const PAIRS={
-  // Crypto — Binance API
-  BTCUSDT:{dec:2, type:'crypto', vname:'Bitcoin',    src:'binance'},
-  ETHUSDT:{dec:2, type:'crypto', vname:'Ethereum',   src:'binance'},
-  SOLUSDT:{dec:3, type:'crypto', vname:'Solana',     src:'binance'},
-  BNBUSDT:{dec:2, type:'crypto', vname:'BNB',        src:'binance'},
-  XRPUSDT:{dec:4, type:'crypto', vname:'Ripple',     src:'binance'},
-  // Forex e Ouro — Twelve Data API (gratuito)
-  XAUUSD: {dec:2, type:'gold',   vname:'Ouro',       src:'twelve', symbol:'XAU/USD'},
-  EURUSD: {dec:5, type:'forex',  vname:'Euro Dólar', src:'twelve', symbol:'EUR/USD'},
-  GBPUSD: {dec:5, type:'forex',  vname:'Libra Dólar',src:'twelve', symbol:'GBP/USD'},
+  BTCUSDT:{dec:2, type:'crypto', vname:'Bitcoin',    label:'BTC/USDT'},
+  ETHUSDT:{dec:2, type:'crypto', vname:'Ethereum',   label:'ETH/USDT'},
+  SOLUSDT:{dec:3, type:'crypto', vname:'Solana',     label:'SOL/USDT'},
+  BNBUSDT:{dec:2, type:'crypto', vname:'BNB',        label:'BNB/USDT'},
+  XRPUSDT:{dec:4, type:'crypto', vname:'Ripple',     label:'XRP/USDT'},
+  PAXGUSDT:{dec:2,type:'gold',   vname:'Ouro (PAXG)',label:'XAU/USD'},
+  EURUSDT:{dec:5, type:'forex',  vname:'Euro',       label:'EUR/USD'},
+  GBPUSDT:{dec:5, type:'forex',  vname:'Libra',      label:'GBP/USD'},
 };
 const ATR={
   crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006, H1:.009,  H4:.018},
   gold:  {M1:.0004,M5:.0008,M15:.0013,M30:.002, H1:.0035, H4:.007},
-  forex: {M1:.0002,M5:.0004,M15:.0007,M30:.0012,H1:.002,  H4:.004},
+  forex: {M1:.0003,M5:.0006,M15:.001, M30:.0018,H1:.003,  H4:.006},
 };
 const TF_KEY={'1m':'M1','5m':'M5','15m':'M15','30m':'M30','1h':'H1','4h':'H4'};
 
@@ -1153,128 +1151,38 @@ function updateTFChip(){
 // ================================================================
 // BINANCE API
 // ================================================================
-// ================================================================
-// TWELVE DATA API KEY — gratuito em twelvedata.com
-// Limite: 800 req/dia no plano free
-// ================================================================
-const TWELVE_KEY = '9de4d506522b439baa1a865cd75bb4fe'; // ← substitua pela sua key grátis em twelvedata.com
-
 async function fetchAllPrices(){
-  // Busca crypto na Binance
-  const cryptoSyms = Object.keys(PAIRS).filter(k=>PAIRS[k].src==='binance');
-  const forexSyms  = Object.keys(PAIRS).filter(k=>PAIRS[k].src==='twelve');
-
-  // Crypto — Binance
   try{
-    const url=`https://api.binance.com/api/v3/ticker/24hr?symbols=[${cryptoSyms.map(s=>'"'+s+'"').join(',')}]`;
+    const syms=Object.keys(PAIRS);
+    const url=`https://api.binance.com/api/v3/ticker/24hr?symbols=[${syms.map(s=>'"'+s+'"').join(',')}]`;
     const res=await fetch(url);
-    if(res.ok){
-      const data=await res.json();
-      data.forEach(item=>{
-        const s=item.symbol;
-        if(LIVE[s]){LIVE[s].price=parseFloat(item.lastPrice);LIVE[s].chg=parseFloat(item.priceChangePercent);LIVE[s].ready=true;}
-      });
-    }
-  }catch(e){}
-
-  // Forex + Ouro — Twelve Data
-  if(forexSyms.length>0){
+    if(!res.ok)throw new Error();
+    const data=await res.json();
+    data.forEach(item=>{
+      const s=item.symbol;
+      if(LIVE[s]){LIVE[s].price=parseFloat(item.lastPrice);LIVE[s].chg=parseFloat(item.priceChangePercent);LIVE[s].ready=true;}
+    });
+    buildTicker();updateHeaderPrice();setApiStatus(true);
+  }catch(e){
     try{
-      const symbols=forexSyms.map(k=>PAIRS[k].symbol).join(',');
-      const url=`https://api.twelvedata.com/price?symbol=${encodeURIComponent(symbols)}&apikey=${TWELVE_KEY}`;
-      const res=await fetch(url);
-      if(res.ok){
-        const data=await res.json();
-        forexSyms.forEach(k=>{
-          const sym=PAIRS[k].symbol;
-          // Twelve retorna objeto com chave do símbolo quando múltiplos
-          const item=data[sym]||data;
-          if(item?.price){
-            const price=parseFloat(item.price);
-            if(!isNaN(price)&&price>0){
-              const oldPrice=LIVE[k].price||price;
-              LIVE[k].price=price;
-              LIVE[k].chg=oldPrice>0?+((price-oldPrice)/oldPrice*100).toFixed(3):0;
-              LIVE[k].ready=true;
-            }
-          }
-        });
-        // Busca variação 24h separado para forex
-        fetchForexChange(forexSyms);
-      }
-    }catch(e){
-      // Fallback — busca um a um
-      for(const k of forexSyms){
+      for(const sym of Object.keys(PAIRS)){
         try{
-          const sym=PAIRS[k].symbol;
-          const r=await fetch(`https://api.twelvedata.com/price?symbol=${encodeURIComponent(sym)}&apikey=${TWELVE_KEY}`);
-          const d=await r.json();
-          if(d?.price){
-            LIVE[k].price=parseFloat(d.price);
-            LIVE[k].ready=true;
-          }
+          const r2=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
+          const d2=await r2.json();
+          LIVE[sym].price=parseFloat(d2.lastPrice);LIVE[sym].chg=parseFloat(d2.priceChangePercent);LIVE[sym].ready=true;
         }catch(_){}
       }
-    }
+      buildTicker();updateHeaderPrice();setApiStatus(true);
+    }catch(_){setApiStatus(false);}
   }
-
-  buildTicker();
-  updateHeaderPrice();
-  setApiStatus(true);
-}
-
-async function fetchForexChange(forexSyms){
-  // Busca variação do dia para forex
-  try{
-    for(const k of forexSyms){
-      const sym=PAIRS[k].symbol;
-      const r=await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}&apikey=${TWELVE_KEY}`);
-      if(!r.ok)continue;
-      const d=await r.json();
-      if(d?.percent_change){
-        LIVE[k].chg=parseFloat(d.percent_change);
-      }
-    }
-    buildTicker();
-    updateHeaderPrice();
-  }catch(e){}
 }
 async function fetchSinglePrice(sym){
-  const pair=PAIRS[sym];
-  if(!pair) return null;
-  if(pair.src==='binance'){
-    try{
-      const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`);
-      const d=await r.json();
-      return parseFloat(d.price);
-    }catch(e){return null;}
-  } else {
-    // Forex / Ouro — Twelve Data
-    try{
-      const r=await fetch(`https://api.twelvedata.com/price?symbol=${encodeURIComponent(pair.symbol)}&apikey=${TWELVE_KEY}`);
-      const d=await r.json();
-      return d?.price?parseFloat(d.price):null;
-    }catch(e){return null;}
-  }
+  try{const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`);const d=await r.json();return parseFloat(d.price);}
+  catch(e){return null;}
 }
-// Mapa de timeframes Binance → Twelve Data
-const TF_TWELVE={'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1h','4h':'4h'};
-
 async function loadCandles(){
   const sym=document.getElementById('sel-sym').value;
   const tf=document.getElementById('sel-tf').value;
-  const pair=PAIRS[sym];
-
-  if(pair?.src==='twelve'){
-    // Forex / Ouro — Twelve Data
-    await loadCandlesTwelve(sym,tf);
-  } else {
-    // Crypto — Binance
-    await loadCandlesBinance(sym,tf);
-  }
-}
-
-async function loadCandlesBinance(sym,tf){
   try{
     const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${tf}&limit=80`);
     if(!r.ok)throw new Error();
@@ -1283,47 +1191,9 @@ async function loadCandlesBinance(sym,tf){
     calcEMAs();drawChart();
   }catch(e){genFakeCandles();}
 }
-
-async function loadCandlesTwelve(sym,tf){
-  const pair=PAIRS[sym];
-  if(!pair)return;
-  try{
-    const interval=TF_TWELVE[tf]||'5min';
-    const url=`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(pair.symbol)}&interval=${interval}&outputsize=80&apikey=${TWELVE_KEY}`;
-    const r=await fetch(url);
-    if(!r.ok)throw new Error();
-    const data=await r.json();
-    if(data.status==='error'||!data.values?.length)throw new Error(data.message||'No data');
-    // Twelve Data retorna do mais recente para o mais antigo — precisa inverter
-    candles=data.values.reverse().map(k=>({
-      t:new Date(k.datetime).getTime(),
-      o:+k.open,h:+k.high,l:+k.low,c:+k.close
-    }));
-    calcEMAs();drawChart();
-  }catch(e){
-    console.log('Twelve Data candles error:',e.message);
-    genFakeCandles();
-  }
-}
 async function updateLiveCandle(){
   const sym=document.getElementById('sel-sym').value;
   const tf=document.getElementById('sel-tf').value;
-  const pair=PAIRS[sym];
-
-  if(pair?.src==='twelve'){
-    // Para forex atualiza o último candle com o preço atual
-    const p=await fetchSinglePrice(sym);
-    if(p&&candles.length){
-      const last=candles[candles.length-1];
-      candles[candles.length-1]={...last,h:Math.max(last.h,p),l:Math.min(last.l,p),c:p};
-      LIVE[sym].price=p;
-      updateHeaderPrice();
-      calcEMAs();drawChart();if(focusMode)drawFocusChart();
-    }
-    return;
-  }
-
-  // Crypto — Binance
   try{
     const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${tf}&limit=3`);
     if(!r.ok)throw new Error();
@@ -1332,8 +1202,8 @@ async function updateLiveCandle(){
     if(candles.length>80)candles=candles.slice(-80);
     calcEMAs();drawChart();if(focusMode)drawFocusChart();
   }catch(e){
-    if(candles.length&&LIVE[sym]?.price){
-      const last=candles[candles.length-1];const p=LIVE[sym].price;
+    if(candles.length&&LIVE[document.getElementById('sel-sym').value]?.price){
+      const last=candles[candles.length-1];const p=LIVE[document.getElementById('sel-sym').value].price;
       candles[candles.length-1]={...last,h:Math.max(last.h,p),l:Math.min(last.l,p),c:p};
       calcEMAs();drawChart();if(focusMode)drawFocusChart();
     }
@@ -1342,8 +1212,8 @@ async function updateLiveCandle(){
 function genFakeCandles(){
   const sym=document.getElementById('sel-sym').value;
   const type=PAIRS[sym]?.type||'crypto';
-  const basePrice={BTCUSDT:78000,ETHUSDT:3100,SOLUSDT:155,BNBUSDT:590,XRPUSDT:0.52,XAUUSD:2320,EURUSD:1.0850,GBPUSD:1.2700};
-  const price=LIVE[sym]?.price||basePrice[sym]||1000;
+  const bases={BTCUSDT:78000,ETHUSDT:3100,SOLUSDT:155,BNBUSDT:590,XRPUSDT:0.52,PAXGUSDT:2320,EURUSDT:1.0850,GBPUSDT:1.2700};
+  const price=LIVE[sym]?.price||bases[sym]||1000;
   const v=type==='gold'?.0008:type==='forex'?.0004:.003;const now=Date.now();candles=[];let p=price*(1-Math.random()*.015);
   for(let i=79;i>=0;i--){const t=now-i*5*60*1000,o=p;const c=o*(1+(Math.random()-.47)*v*2);const h=Math.max(o,c)*(1+Math.random()*v*.4);const l=Math.min(o,c)*(1-Math.random()*v*.4);candles.push({t,o:+o.toFixed(2),h:+h.toFixed(2),l:+l.toFixed(2),c:+c.toFixed(2)});p=c;}
   calcEMAs();drawChart();
@@ -1364,7 +1234,7 @@ function buildTicker(){
   const items=[...keys,...keys];
   document.getElementById('ticker').innerHTML=items.map(sym=>{
     const{price,chg}=LIVE[sym];const dec=PAIRS[sym].dec;
-    const label=PAIRS[sym]?.symbol||sym.replace('USDT','');
+    const label=PAIRS[sym]?.label||sym.replace('USDT','');
     return `<div class="ti"><span class="ti-sym">${label}</span><span class="ti-p">${fp(price,dec)}</span><span class="ti-c ${chg>=0?'up':'dn'}">${(chg>=0?'+':'')+chg.toFixed(2)}%</span><span class="ti-sep">|</span></div>`;
   }).join('');
 }
@@ -1479,21 +1349,31 @@ function computeScores(sym,tf){
 
     // Bonus por ativo — cada ativo tem afinidade com certas estratégias
     if(sym==='BTCUSDT'){
-      if(s.id==='bos'||s.id==='trend')score+=10;   // BTC respeita muito estrutura
-      if(s.id==='vol'||s.id==='liq')score+=8;       // volume e liquidez fortes no BTC
+      if(s.id==='bos'||s.id==='trend')score+=10;
+      if(s.id==='vol'||s.id==='liq')score+=8;
       if(s.id==='fvg')score+=6;
     }
-    if(sym==='XAUUSDT'){
-      if(s.id==='fvg'||s.id==='ob')score+=14;       // Ouro respeita muito FVG e OB
-      if(s.id==='sr'||s.id==='chan')score+=10;       // S/R e canal fortes no ouro
+    if(sym==='PAXGUSDT'){
+      if(s.id==='fvg'||s.id==='ob')score+=14;  // Ouro respeita muito FVG e OB
+      if(s.id==='sr'||s.id==='chan')score+=10;  // S/R e canal fortes no ouro
       if(s.id==='ema')score+=6;
+    }
+    if(sym==='EURUSDT'){
+      if(s.id==='sr'||s.id==='vwap')score+=12; // EUR/USD respeita muito S/R e VWAP
+      if(s.id==='ema'||s.id==='trend')score+=10;
+      if(s.id==='fvg')score+=8;
+    }
+    if(sym==='GBPUSDT'){
+      if(s.id==='fvg'||s.id==='bos')score+=12; // GBP/USD muito agressivo em BOS e FVG
+      if(s.id==='sr'||s.id==='trend')score+=10;
+      if(s.id==='liq')score+=8;                // Libra tem muita varredura de liquidez
     }
     if(sym==='ETHUSDT'){
       if(s.id==='bos'||s.id==='choch')score+=10;
       if(s.id==='fvg'||s.id==='ema')score+=8;
     }
     if(sym==='SOLUSDT'){
-      if(s.id==='trend'||s.id==='ema')score+=12;    // SOL segue tendência forte
+      if(s.id==='trend'||s.id==='ema')score+=12;
       if(s.id==='liq')score+=8;
     }
 
