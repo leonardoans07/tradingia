@@ -214,14 +214,30 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Ouve mudanças de auth
     sb.auth.onAuthStateChange(async (event, session) => {
       dbg('Auth event: ' + event);
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN') {
         user = session.user;
+        dbg('SIGNED_IN - redirecionando para dashboard');
+        // Salva email na sessão local e mostra dashboard inline
         await loadProfile();
-        showDash();
+        // Força exibição do dashboard
+        const authCard = document.getElementById('auth-card');
+        const dash = document.getElementById('dashboard');
+        if(authCard) authCard.style.cssText = 'display:none!important';
+        if(dash) {
+          dash.style.cssText = 'display:block!important';
+          dash.removeAttribute('hidden');
+        }
+        updateDash();
+        loadTransactions();
+        window.scrollTo(0,0);
+        dbg('Dashboard forçado');
       } else if (event === 'SIGNED_OUT') {
         user = null;
         profile = null;
-        showAuth();
+        const authCard = document.getElementById('auth-card');
+        const dash = document.getElementById('dashboard');
+        if(authCard) authCard.style.cssText = 'display:block!important';
+        if(dash) dash.style.cssText = 'display:none!important';
       }
     });
 
@@ -418,12 +434,17 @@ async function loadTransactions() {
 // UI
 // ================================================================
 function showDash() {
-  document.getElementById('auth-card').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
+  const authCard = document.getElementById('auth-card');
+  const dash = document.getElementById('dashboard');
+  if(authCard) authCard.style.cssText = 'display:none!important';
+  if(dash) {
+    dash.style.cssText = 'display:block!important';
+    dash.removeAttribute('hidden');
+  }
   window.scrollTo(0,0);
   updateDash();
   loadTransactions();
-  dbg('Dashboard aberto para: ' + (user?.email||'?'));
+  dbg('showDash chamado para: ' + (user?.email||'?'));
 }
 
 function showAuth() {
