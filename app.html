@@ -1063,14 +1063,24 @@ async function loadCredits(){
 async function consumeCredit(){
   if(!_sb||!_currentUser) return true; // sem login = modo livre
   if(_userCredits<=0){
-    showToast('tr2','❌','Sem créditos!','Compre mais em iaxauron.com.br/auth.html');
-    speak('Você não tem créditos suficientes. Acesse o painel para comprar mais.',true);
+    showToast('tr2','❌','Sem sinais disponíveis!','Acesse o painel para comprar mais sinais.');
+    speak('Você não tem sinais disponíveis. Acesse o painel para comprar mais.',true);
+    // Redireciona para o dashboard após 3 segundos
+    setTimeout(()=>{ window.location.href='dashboard.html'; },3000);
     return false;
   }
   try{
-    await _sb.from('profiles').update({ credits: _userCredits-1 }).eq('id',_currentUser.id);
-    _userCredits--;
-    updateCreditsUI();
+    const{error}=await _sb.from('profiles').update({ credits: _userCredits-1 }).eq('id',_currentUser.id);
+    if(!error){
+      // Registra o uso no histórico
+      await _sb.from('transactions').insert({
+        user_id:_currentUser.id,type:'usage',amount:-1,
+        description:'Sinal confirmado utilizado',
+        created_at:new Date().toISOString()
+      });
+      _userCredits--;
+      updateCreditsUI();
+    }
     return true;
   }catch(e){ return true; }
 }
@@ -1082,7 +1092,7 @@ function updateCreditsUI(){
     el.innerHTML='<a href="auth.html" style="color:var(--t2);text-decoration:none">⚡ Entrar</a>';
     return;
   }
-  el.textContent=_userCredits+' créditos';
+  el.textContent=_userCredits+' sinal'+((_userCredits!==1)?'is':'');
   el.style.color=_userCredits>20?'var(--gold)':_userCredits>5?'var(--a)':'var(--r)';
 }
 
@@ -1314,8 +1324,6 @@ function calcSLTP(sym,dir,score,tfRaw,price){
 // RUN ANALYSIS
 // ================================================================
 async function runAnalysis(){
-  const ok=await consumeCredit();
-  if(!ok)return;
   const sym=document.getElementById('sel-sym').value;const tf=document.getElementById('sel-tf').value;const tfK=TF_KEY[tf]||'M5';const thr=parseInt(document.getElementById('thr').value);
   if(!LIVE[sym]?.ready||LIVE[sym].price===0)await fetchAllPrices();
   const price=LIVE[sym]?.price||0;
@@ -1333,6 +1341,9 @@ async function runAnalysis(){
   document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup forte!':global>=55?'Moderado':'Fraco';
   document.getElementById('f-fired').textContent=fired+' estratégias';
   if(global>=thr){
+    // COBRA CREDITO APENAS quando há sinal confirmado
+    const ok=await consumeCredit();
+    if(!ok)return;
     const sltp=calcSLTP(sym,dir,global,tf,price);
     overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
     drawChart();updateBadges(dir,sltp,global,trendType);

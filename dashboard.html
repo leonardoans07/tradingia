@@ -7,190 +7,215 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
 <style>
-:root{--bg:#0a0c10;--bg2:#111318;--bg3:#181c24;--b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);--t:#e8eaf0;--t2:#7a8099;--t3:#4a5068;--g:#00e896;--gb:rgba(0,232,150,.08);--gbd:rgba(0,232,150,.25);--r:#ff4d6a;--rb:rgba(255,77,106,.08);--rbd:rgba(255,77,106,.25);--gold:#ffd700;--goldb:rgba(255,215,0,.1);--goldbd:rgba(255,215,0,.3);--mono:'DM Mono',monospace;--font:'Syne',sans-serif}
+:root{--bg:#0a0c10;--bg2:#111318;--bg3:#181c24;--b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);--t:#e8eaf0;--t2:#7a8099;--t3:#4a5068;--g:#00e896;--gb:rgba(0,232,150,.08);--gbd:rgba(0,232,150,.25);--r:#ff4d6a;--rb:rgba(255,77,106,.08);--rbd:rgba(255,77,106,.25);--gold:#ffd700;--goldb:rgba(255,215,0,.1);--goldbd:rgba(255,215,0,.3);--a:#ffb547;--mono:'DM Mono',monospace;--font:'Syne',sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--t);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+body{background:var(--bg);color:var(--t);font-family:var(--font);min-height:100vh;padding:24px 16px 60px;display:flex;justify-content:center}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-.wrap{position:relative;z-index:1;width:100%;max-width:420px}
-.card{background:var(--bg2);border:1px solid var(--b2);border-radius:16px;padding:32px;margin-bottom:10px}
-.logo{display:flex;align-items:center;gap:10px;margin-bottom:20px}
-.logo-ico{width:34px;height:34px;background:linear-gradient(135deg,#ffd700,#00e896);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000}
-.logo-name{font-size:17px;font-weight:700}
-.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.user-email{font-size:12px;font-weight:500;color:var(--t)}
-.user-plan{font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:2px}
+.wrap{position:relative;z-index:1;width:100%;max-width:480px}
+.hdr{display:flex;align-items:center;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--b);margin-bottom:20px}
+.hdr-ico{width:34px;height:34px;background:linear-gradient(135deg,#ffd700,#00e896);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;flex-shrink:0}
+.hdr-name{font-size:16px;font-weight:700}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.badge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:8px;background:var(--goldb);color:var(--gold);border:1px solid var(--goldbd)}
 .btn-sair{background:none;border:1px solid var(--b2);border-radius:6px;padding:5px 12px;color:var(--t2);font-family:var(--mono);font-size:10px;cursor:pointer}
-.btn-sair:hover{color:var(--t)}
-.credits-box{background:var(--bg3);border:1px solid var(--goldbd);border-radius:12px;padding:18px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
-.cr-num{font-size:40px;font-weight:700;color:var(--gold);line-height:1;flex-shrink:0}
+.credits-card{background:var(--bg2);border:1px solid var(--goldbd);border-radius:14px;padding:20px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+.cr-num{font-size:52px;font-weight:700;color:var(--gold);line-height:1;flex-shrink:0;font-family:var(--mono)}
 .cr-info{flex:1}
-.cr-lbl{font-family:var(--mono);font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.cr-bar-track{background:var(--b);border-radius:3px;height:6px;overflow:hidden;margin-bottom:5px}
-.cr-bar-fill{height:6px;border-radius:3px;transition:width .4s}
-.cr-bar-lbl{font-family:var(--mono);font-size:9px;color:var(--t2)}
-.sec-lbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin-bottom:10px}
-.pkgs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
-.pkg{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .15s}
-.pkg:hover{border-color:var(--b2);transform:translateY(-1px)}
-.pkg.best{border-color:var(--goldbd)}
-.pkg-n{font-size:24px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:2px}
-.pkg-l{font-family:var(--mono);font-size:8px;color:var(--t3);text-transform:uppercase;margin-bottom:8px}
-.pkg-p{font-size:15px;font-weight:700}
+.cr-lbl{font-family:var(--mono);font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.cr-track{background:var(--b);border-radius:3px;height:7px;overflow:hidden;margin-bottom:6px}
+.cr-fill{height:7px;border-radius:3px;transition:width .5s}
+.cr-sub{font-family:var(--mono);font-size:9px;color:var(--t2)}
+.zero-msg{background:var(--rb);border:1px solid var(--rbd);border-radius:8px;padding:8px 12px;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--r);display:none}
+.info-box{background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:12px 14px;margin-bottom:4px;display:flex;gap:10px;align-items:flex-start}
+.info-ico{font-size:15px;flex-shrink:0;margin-top:1px}
+.info-txt{font-family:var(--mono);font-size:10px;color:var(--t2);line-height:1.65}
+.info-txt b{color:var(--gold)}
+.sec{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);margin:18px 0 10px}
+.pkgs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pkg{background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .15s;text-decoration:none;display:block;color:var(--t)}
+.pkg:hover{border-color:var(--b2);transform:translateY(-2px)}
+.pkg.best{border-color:var(--goldbd);background:linear-gradient(135deg,var(--goldb),var(--bg2))}
+.pkg-n{font-size:28px;font-weight:700;color:var(--gold);line-height:1;font-family:var(--mono)}
+.pkg-l{font-family:var(--mono);font-size:8px;color:var(--t3);text-transform:uppercase;margin:2px 0 10px}
+.pkg-p{font-size:16px;font-weight:700}
 .pkg-pp{font-family:var(--mono);font-size:8px;color:var(--t3);margin-top:2px}
-.plans{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
-.plan{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:14px 16px;cursor:pointer;transition:all .15s}
-.plan:hover{border-color:var(--b2)}
-.plan.best{border-color:var(--goldbd)}
+.pkg-badge{font-family:var(--mono);font-size:8px;background:rgba(255,215,0,.15);color:var(--gold);border:1px solid var(--goldbd);padding:2px 6px;border-radius:4px;display:inline-block;margin-top:5px}
+.mp-note{font-family:var(--mono);font-size:9px;color:var(--t3);text-align:center;margin:7px 0 4px;display:flex;align-items:center;justify-content:center;gap:5px}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.plan{background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:14px 10px;text-align:center;text-decoration:none;display:block;color:var(--t);transition:all .15s;cursor:pointer}
+.plan:hover{border-color:var(--b2);transform:translateY(-2px)}
+.plan.feat{border-color:var(--gbd);background:linear-gradient(135deg,var(--gb),var(--bg2))}
 .plan-name{font-family:var(--mono);font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:4px}
-.plan-price{font-size:18px;font-weight:700;color:var(--g)}
+.plan-price{font-size:17px;font-weight:700;color:var(--g)}
 .plan-price span{font-size:10px;color:var(--t3);font-weight:400}
-.plan-desc{font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:4px}
-.hist-list{display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:20px}
-.hi{background:var(--bg3);border:1px solid var(--b);border-radius:6px;padding:7px 11px;display:flex;justify-content:space-between;align-items:center}
-.hi-desc{font-size:11px;font-weight:500}
-.hi-date{font-family:var(--mono);font-size:9px;color:var(--t3)}
-.hi-amt{font-family:var(--mono);font-size:11px;font-weight:500}
+.plan-desc{font-family:var(--mono);font-size:8px;color:var(--t2);margin-top:4px;line-height:1.5}
+.hist{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
+.hi{background:var(--bg2);border:1px solid var(--b);border-radius:7px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hi-d{font-size:11px;font-weight:500}
+.hi-dt{font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:2px}
+.hi-a{font-family:var(--mono);font-size:12px;font-weight:600;flex-shrink:0}
 .pos{color:var(--g)}.neg{color:var(--r)}
-.btn-app{width:100%;padding:13px;border-radius:9px;border:none;background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;font-family:var(--font)}
+.btn-app{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:10px;border:none;margin-top:22px;background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;font-family:var(--font);transition:all .2s}
 .btn-app:hover{opacity:.9;transform:translateY(-1px)}
-.spin{display:inline-block;width:28px;height:28px;border:3px solid var(--b2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading{text-align:center;padding:40px}
-.loading p{font-family:var(--mono);font-size:11px;color:var(--t2);margin-top:12px}
+.loading{text-align:center;padding:80px 20px}
+.spin{display:inline-block;width:32px;height:32px;border:3px solid var(--b2);border-top-color:var(--gold);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading p{font-family:var(--mono);font-size:11px;color:var(--t2);margin-top:14px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="card" id="main-card">
-    <div class="loading" id="loading">
-      <div class="spin"></div>
-      <p>Carregando painel...</p>
+
+<div class="loading" id="loading"><div class="spin"></div><p>Carregando painel...</p></div>
+
+<div id="content" style="display:none">
+
+  <div class="hdr">
+    <div class="hdr-ico">⚡</div>
+    <div>
+      <div class="hdr-name">IA Xauron</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--t2)" id="d-email">--</div>
     </div>
-    <div id="content" style="display:none">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-        <div class="logo-ico">⚡</div>
-        <span class="logo-name">IA Xauron</span>
-        <div style="flex:1"></div>
-        <button class="btn-sair" onclick="doLogout()">Sair</button>
-      </div>
-
-      <div style="margin-bottom:16px">
-        <div style="font-size:12px;font-weight:500" id="d-email">--</div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:2px" id="d-plan">Plano Free</div>
-      </div>
-
-      <div class="credits-box">
-        <div class="cr-num" id="d-credits">--</div>
-        <div class="cr-info">
-          <div class="cr-lbl">créditos disponíveis</div>
-          <div class="cr-bar-track"><div class="cr-bar-fill" id="d-bar" style="width:0%"></div></div>
-          <div class="cr-bar-lbl" id="d-bar-lbl">carregando...</div>
-        </div>
-      </div>
-
-      <div class="sec-lbl">Comprar créditos</div>
-      <div class="pkgs">
-        <div class="pkg" onclick="buyCredits(50,19)"><div class="pkg-n">50</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 19</div><div class="pkg-pp">R$0,38/análise</div></div>
-        <div class="pkg" onclick="buyCredits(200,59)"><div class="pkg-n">200</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 59</div><div class="pkg-pp">R$0,30/análise</div></div>
-        <div class="pkg" onclick="buyCredits(500,129)"><div class="pkg-n">500</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 129</div><div class="pkg-pp">R$0,26/análise</div></div>
-        <div class="pkg best" onclick="buyCredits(1000,199)"><div class="pkg-n" style="color:var(--gold)">1000</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 199</div><div class="pkg-pp" style="color:var(--g)">melhor custo</div></div>
-      </div>
-
-      <div class="sec-lbl">Planos mensais</div>
-      <div class="plans">
-        <div class="plan" onclick="alert('Mercado Pago em breve!')"><div class="plan-name">PRO</div><div class="plan-price">R$49<span>/mês</span></div><div class="plan-desc">200 análises/dia</div></div>
-        <div class="plan best" onclick="alert('Mercado Pago em breve!')"><div class="plan-name">ELITE</div><div class="plan-price">R$149<span>/mês</span></div><div class="plan-desc">Ilimitado + Telegram</div></div>
-      </div>
-
-      <div class="sec-lbl">Histórico de transações</div>
-      <div class="hist-list" id="d-hist">
-        <div style="text-align:center;padding:12px;font-family:var(--mono);font-size:9px;color:var(--t3)">Nenhuma transação ainda</div>
-      </div>
-
-      <a href="app.html" class="btn-app">⚡ Acessar plataforma →</a>
+    <div class="hdr-r">
+      <span class="badge" id="d-plan">Free</span>
+      <button class="btn-sair" onclick="logout()">Sair</button>
     </div>
   </div>
+
+  <div class="credits-card">
+    <div class="cr-num" id="d-cr">--</div>
+    <div class="cr-info">
+      <div class="cr-lbl">sinais disponíveis</div>
+      <div class="cr-track"><div class="cr-fill" id="d-bar" style="width:0%"></div></div>
+      <div class="cr-sub" id="d-sub">carregando...</div>
+      <div class="zero-msg" id="zero-msg">⚠️ Sem sinais! Compre um pacote abaixo.</div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div class="info-ico">💡</div>
+    <div class="info-txt">
+      <b>Como funciona:</b> 1 crédito = 1 sinal confirmado.<br>
+      Você só gasta crédito quando a IA identificar uma <b>entrada real</b> com score acima do limiar. Análises sem sinal são <b>gratuitas</b>.
+    </div>
+  </div>
+
+  <div class="sec">Comprar sinais — Mercado Pago</div>
+  <div class="pkgs">
+    <a class="pkg" href="LINK_MP_10" target="_blank">
+      <div class="pkg-n">10</div><div class="pkg-l">sinais</div>
+      <div class="pkg-p">R$ 50</div><div class="pkg-pp">R$ 5,00/sinal</div>
+    </a>
+    <a class="pkg" href="LINK_MP_25" target="_blank">
+      <div class="pkg-n">25</div><div class="pkg-l">sinais</div>
+      <div class="pkg-p">R$ 100</div><div class="pkg-pp">R$ 4,00/sinal</div>
+      <div class="pkg-badge">-20%</div>
+    </a>
+    <a class="pkg" href="LINK_MP_50" target="_blank">
+      <div class="pkg-n">50</div><div class="pkg-l">sinais</div>
+      <div class="pkg-p">R$ 175</div><div class="pkg-pp">R$ 3,50/sinal</div>
+      <div class="pkg-badge">-30%</div>
+    </a>
+    <a class="pkg best" href="LINK_MP_100" target="_blank">
+      <div class="pkg-n" style="color:var(--gold)">100</div><div class="pkg-l">sinais</div>
+      <div class="pkg-p">R$ 300</div><div class="pkg-pp">R$ 3,00/sinal</div>
+      <div class="pkg-badge">melhor valor</div>
+    </a>
+  </div>
+  <div class="mp-note">🔒 Pagamento seguro · PIX, cartão e boleto</div>
+
+  <div class="sec">Planos mensais com desconto</div>
+  <div class="plans">
+    <a class="plan" href="LINK_MP_BASIC" target="_blank">
+      <div class="plan-name">Básico</div>
+      <div class="plan-price">R$79<span>/mês</span></div>
+      <div class="plan-desc">20 sinais/mês<br>R$3,95/sinal</div>
+    </a>
+    <a class="plan feat" href="LINK_MP_PRO" target="_blank">
+      <div class="plan-name">Pro ⭐</div>
+      <div class="plan-price">R$149<span>/mês</span></div>
+      <div class="plan-desc">50 sinais/mês<br>R$2,98/sinal</div>
+    </a>
+    <a class="plan" href="LINK_MP_ELITE" target="_blank">
+      <div class="plan-name">Elite</div>
+      <div class="plan-price">R$249<span>/mês</span></div>
+      <div class="plan-desc">100 sinais/mês<br>R$2,49/sinal</div>
+    </a>
+  </div>
+
+  <div class="sec">Histórico de transações</div>
+  <div class="hist" id="d-hist">
+    <div style="text-align:center;padding:14px;font-family:var(--mono);font-size:9px;color:var(--t3)">Nenhuma transação ainda</div>
+  </div>
+
+  <a href="app.html" class="btn-app">⚡ Acessar plataforma →</a>
+
+</div>
 </div>
 
 <script>
-const SURL = 'https://dlgzpgqnadlqvmaymzep.supabase.co';
-const SKEY = 'sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
-let sb, user, profile;
+const SURL='https://dlgzpgqnadlqvmaymzep.supabase.co';
+const SKEY='sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
+const sb=window.supabase.createClient(SURL,SKEY);
+let user,profile;
 
-window.addEventListener('DOMContentLoaded', async () => {
-  sb = window.supabase.createClient(SURL, SKEY);
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session?.user) {
-    window.location.href = 'auth.html';
-    return;
-  }
-  user = session.user;
+window.addEventListener('DOMContentLoaded',async()=>{
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session?.user){window.location.href='auth.html';return;}
+  user=session.user;
   await loadProfile();
-  renderDash();
+  render();
+  await loadHist();
+  document.getElementById('loading').style.display='none';
+  document.getElementById('content').style.display='block';
 });
 
-async function loadProfile() {
-  const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).single();
-  if (error || !data) {
-    // Cria perfil se não existe
-    const { data: newP } = await sb.from('profiles').insert({
-      id: user.id, email: user.email,
-      name: user.user_metadata?.full_name || user.email,
-      plan: 'free', credits: 10, credits_used_today: 0,
-      last_reset: new Date().toISOString().split('T')[0]
+async function loadProfile(){
+  const{data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(error||!data){
+    const{data:np}=await sb.from('profiles').insert({
+      id:user.id,email:user.email,
+      name:user.user_metadata?.full_name||user.email,
+      plan:'free',credits:3,credits_used_today:0,
+      last_reset:new Date().toISOString().split('T')[0]
     }).select().single();
-    profile = newP || { credits: 10, plan: 'free' };
-    // Registra bônus de boas-vindas
-    await sb.from('transactions').insert({
-      user_id: user.id, type: 'bonus', amount: 10,
-      description: 'Créditos de boas-vindas (plano Free)',
-      created_at: new Date().toISOString()
-    });
+    profile=np||{credits:3,plan:'free'};
+    await sb.from('transactions').insert({user_id:user.id,type:'bonus',amount:3,description:'Boas-vindas: 3 sinais gratis',created_at:new Date().toISOString()});
   } else {
-    profile = data;
+    profile=data;
   }
 }
 
-function renderDash() {
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('content').style.display = 'block';
-  document.getElementById('d-email').textContent = user.email;
-  const plan = profile?.plan || 'free';
-  document.getElementById('d-plan').textContent = 'Plano ' + plan.charAt(0).toUpperCase() + plan.slice(1);
-  const cr = profile?.credits || 0;
-  document.getElementById('d-credits').textContent = cr;
-  const pct = Math.min(100, plan === 'elite' ? 100 : cr);
-  const bar = document.getElementById('d-bar');
-  bar.style.width = pct + '%';
-  bar.style.background = cr < 5 ? '#ff4d6a' : cr < 20 ? '#ffb547' : 'linear-gradient(90deg,#ffd700,#00e896)';
-  document.getElementById('d-bar-lbl').textContent = cr + ' créditos · plano ' + plan;
-  loadTransactions();
+function render(){
+  const cr=profile?.credits||0;
+  const plan=profile?.plan||'free';
+  document.getElementById('d-email').textContent=user.email;
+  document.getElementById('d-plan').textContent=plan.charAt(0).toUpperCase()+plan.slice(1);
+  document.getElementById('d-cr').textContent=cr;
+  const maxRef=plan==='elite'?100:plan==='pro'?50:plan==='basic'?20:10;
+  const pct=Math.min(100,Math.round(cr/maxRef*100));
+  const bar=document.getElementById('d-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=cr===0?'#ff4d6a':cr<=3?'#ffb547':'linear-gradient(90deg,#ffd700,#00e896)';
+  document.getElementById('d-sub').textContent=cr+' sinais disponíveis';
+  document.getElementById('zero-msg').style.display=cr===0?'block':'none';
 }
 
-async function loadTransactions() {
-  const { data } = await sb.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(8);
-  const el = document.getElementById('d-hist');
-  if (!data?.length) return;
-  el.innerHTML = data.map(t => {
-    const d = new Date(t.created_at);
-    const isPos = t.type !== 'usage';
-    return `<div class="hi"><div><div class="hi-desc">${t.description}</div><div class="hi-date">${d.toLocaleDateString('pt-BR')}</div></div><div class="hi-amt ${isPos?'pos':'neg'}">${isPos?'+':''}${t.amount}</div></div>`;
+async function loadHist(){
+  const{data}=await sb.from('transactions').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(10);
+  if(!data?.length)return;
+  const el=document.getElementById('d-hist');
+  el.innerHTML=data.map(t=>{
+    const d=new Date(t.created_at);
+    const pos=t.type!=='usage';
+    const ico=t.type==='usage'?'📊':t.type==='purchase'?'💳':t.type==='bonus'?'🎁':'📦';
+    return `<div class="hi"><div><div class="hi-d">${ico} ${t.description}</div><div class="hi-dt">${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div></div><div class="hi-a ${pos?'pos':'neg'}">${pos?'+':''}${t.amount}</div></div>`;
   }).join('');
 }
 
-async function buyCredits(amount, price) {
-  if (!confirm(`Comprar ${amount} análises por R$${price}?\n\n(Integração Mercado Pago em breve)`)) return;
-  const newCr = (profile?.credits || 0) + amount;
-  await sb.from('profiles').update({ credits: newCr }).eq('id', user.id);
-  await sb.from('transactions').insert({ user_id: user.id, type: 'purchase', amount, description: `Compra ${amount} créditos — R$${price}`, created_at: new Date().toISOString() });
-  profile.credits = newCr;
-  renderDash();
-  alert(`✅ ${amount} créditos adicionados!`);
-}
-
-async function doLogout() {
+async function logout(){
   await sb.auth.signOut();
-  window.location.href = 'auth.html';
+  window.location.href='auth.html';
 }
 </script>
 </body>
