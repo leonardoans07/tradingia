@@ -12,12 +12,14 @@
 body{background:var(--bg);color:var(--t);font-family:var(--font);min-height:100vh;padding:24px 16px 60px;display:flex;justify-content:center}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
 .wrap{position:relative;z-index:1;width:100%;max-width:480px}
+
 .hdr{display:flex;align-items:center;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--b);margin-bottom:20px}
 .hdr-ico{width:34px;height:34px;background:linear-gradient(135deg,#ffd700,#00e896);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;flex-shrink:0}
 .hdr-name{font-size:16px;font-weight:700}
 .hdr-r{margin-left:auto;display:flex;align-items:center;gap:8px}
 .badge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:8px;background:var(--goldb);color:var(--gold);border:1px solid var(--goldbd)}
 .btn-sair{background:none;border:1px solid var(--b2);border-radius:6px;padding:5px 12px;color:var(--t2);font-family:var(--mono);font-size:10px;cursor:pointer}
+
 .credits-card{background:var(--bg2);border:1px solid var(--goldbd);border-radius:14px;padding:20px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
 .cr-num{font-size:52px;font-weight:700;color:var(--gold);line-height:1;flex-shrink:0;font-family:var(--mono)}
 .cr-info{flex:1}
@@ -26,41 +28,69 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .cr-fill{height:7px;border-radius:3px;transition:width .5s}
 .cr-sub{font-family:var(--mono);font-size:9px;color:var(--t2)}
 .zero-msg{background:var(--rb);border:1px solid var(--rbd);border-radius:8px;padding:8px 12px;margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--r);display:none}
+
 .info-box{background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:12px 14px;margin-bottom:4px;display:flex;gap:10px;align-items:flex-start}
 .info-ico{font-size:15px;flex-shrink:0;margin-top:1px}
 .info-txt{font-family:var(--mono);font-size:10px;color:var(--t2);line-height:1.65}
 .info-txt b{color:var(--gold)}
+
 .sec{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);margin:18px 0 10px}
+
+/* PACOTES */
 .pkgs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pkg{background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .15s;text-decoration:none;display:block;color:var(--t)}
-.pkg:hover{border-color:var(--b2);transform:translateY(-2px)}
+.pkg{background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+.pkg:hover{border-color:var(--goldbd);transform:translateY(-2px)}
 .pkg.best{border-color:var(--goldbd);background:linear-gradient(135deg,var(--goldb),var(--bg2))}
+.pkg.selected{border-color:var(--g);background:var(--gb);box-shadow:0 0 0 2px var(--gbd)}
 .pkg-n{font-size:28px;font-weight:700;color:var(--gold);line-height:1;font-family:var(--mono)}
 .pkg-l{font-family:var(--mono);font-size:8px;color:var(--t3);text-transform:uppercase;margin:2px 0 10px}
 .pkg-p{font-size:16px;font-weight:700}
 .pkg-pp{font-family:var(--mono);font-size:8px;color:var(--t3);margin-top:2px}
 .pkg-badge{font-family:var(--mono);font-size:8px;background:rgba(255,215,0,.15);color:var(--gold);border:1px solid var(--goldbd);padding:2px 6px;border-radius:4px;display:inline-block;margin-top:5px}
-.mp-note{font-family:var(--mono);font-size:9px;color:var(--t3);text-align:center;margin:7px 0 4px;display:flex;align-items:center;justify-content:center;gap:5px}
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.plan{background:var(--bg2);border:1px solid var(--b);border-radius:10px;padding:14px 10px;text-align:center;text-decoration:none;display:block;color:var(--t);transition:all .15s;cursor:pointer}
-.plan:hover{border-color:var(--b2);transform:translateY(-2px)}
-.plan.feat{border-color:var(--gbd);background:linear-gradient(135deg,var(--gb),var(--bg2))}
-.plan-name{font-family:var(--mono);font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:4px}
-.plan-price{font-size:17px;font-weight:700;color:var(--g)}
-.plan-price span{font-size:10px;color:var(--t3);font-weight:400}
-.plan-desc{font-family:var(--mono);font-size:8px;color:var(--t2);margin-top:4px;line-height:1.5}
+
+/* PIX MODAL */
+.pix-box{background:var(--bg2);border:1px solid var(--gbd);border-radius:14px;padding:20px;margin-top:14px;display:none;animation:fu .3s ease}
+@keyframes fu{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.pix-box.show{display:block}
+.pix-title{font-size:14px;font-weight:700;color:var(--g);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.pix-sub{font-family:var(--mono);font-size:10px;color:var(--t2);margin-bottom:16px;line-height:1.6}
+.pix-valor{font-size:28px;font-weight:700;color:var(--gold);font-family:var(--mono);text-align:center;margin-bottom:16px}
+.pix-key-wrap{background:var(--bg3);border:1px solid var(--b2);border-radius:8px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.pix-key{font-family:var(--mono);font-size:12px;color:var(--t);word-break:break-all}
+.btn-copy{background:var(--g);color:#000;border:none;border-radius:6px;padding:6px 14px;font-family:var(--mono);font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;transition:all .15s}
+.btn-copy:hover{background:#00ffaa}
+.btn-copy.copied{background:var(--a);color:#000}
+.pix-steps{background:var(--bg3);border-radius:8px;padding:12px 14px;margin-bottom:14px}
+.pix-step{font-family:var(--mono);font-size:10px;color:var(--t2);padding:3px 0;display:flex;gap:8px;line-height:1.5}
+.pix-step-n{color:var(--gold);font-weight:700;flex-shrink:0}
+.pix-confirm-wrap{border-top:1px solid var(--b);padding-top:14px}
+.pix-confirm-title{font-family:var(--mono);font-size:10px;color:var(--t2);margin-bottom:8px}
+.pix-confirm-input{width:100%;background:var(--bg3);border:1px solid var(--b2);border-radius:8px;padding:9px 12px;color:var(--t);font-family:var(--mono);font-size:11px;outline:none;margin-bottom:10px}
+.pix-confirm-input:focus{border-color:var(--gbd)}
+.btn-enviar{width:100%;padding:11px;border-radius:8px;border:none;background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .2s}
+.btn-enviar:hover{opacity:.9}
+.pix-nota{font-family:var(--mono);font-size:9px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.6}
+
+/* HISTÓRICO */
 .hist{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
 .hi{background:var(--bg2);border:1px solid var(--b);border-radius:7px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .hi-d{font-size:11px;font-weight:500}
 .hi-dt{font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:2px}
 .hi-a{font-family:var(--mono);font-size:12px;font-weight:600;flex-shrink:0}
 .pos{color:var(--g)}.neg{color:var(--r)}
+
 .btn-app{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:10px;border:none;margin-top:22px;background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;font-family:var(--font);transition:all .2s}
 .btn-app:hover{opacity:.9;transform:translateY(-1px)}
+
 .loading{text-align:center;padding:80px 20px}
 .spin{display:inline-block;width:32px;height:32px;border:3px solid var(--b2);border-top-color:var(--gold);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .loading p{font-family:var(--mono);font-size:11px;color:var(--t2);margin-top:14px}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:6px;max-width:280px}
+.toast{background:var(--bg2);border:1px solid var(--gbd);border-radius:10px;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--g);box-shadow:0 8px 24px rgba(0,0,0,.4);animation:ti .3s ease}
+.toast.err{border-color:var(--rbd);color:var(--r)}
+@keyframes ti{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -82,67 +112,84 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     </div>
   </div>
 
+  <!-- CRÉDITOS -->
   <div class="credits-card">
     <div class="cr-num" id="d-cr">--</div>
     <div class="cr-info">
       <div class="cr-lbl">sinais disponíveis</div>
       <div class="cr-track"><div class="cr-fill" id="d-bar" style="width:0%"></div></div>
       <div class="cr-sub" id="d-sub">carregando...</div>
-      <div class="zero-msg" id="zero-msg">⚠️ Sem sinais! Compre um pacote abaixo.</div>
+      <div class="zero-msg" id="zero-msg">⚠️ Sem sinais! Escolha um pacote abaixo.</div>
     </div>
   </div>
 
+  <!-- COMO FUNCIONA -->
   <div class="info-box">
     <div class="info-ico">💡</div>
     <div class="info-txt">
       <b>Como funciona:</b> 1 crédito = 1 sinal confirmado.<br>
-      Você só gasta crédito quando a IA identificar uma <b>entrada real</b> com score acima do limiar. Análises sem sinal são <b>gratuitas</b>.
+      Você só gasta crédito quando a IA identificar uma <b>entrada real</b>. Análises sem sinal são <b>gratuitas</b>.
     </div>
   </div>
 
-  <div class="sec">Comprar sinais — Mercado Pago</div>
+  <!-- PACOTES -->
+  <div class="sec">Escolha um pacote — Pague por PIX</div>
   <div class="pkgs">
-    <a class="pkg" href="LINK_MP_10" target="_blank">
+    <div class="pkg" id="pkg-10" onclick="selectPkg(10,50,'pkg-10')">
       <div class="pkg-n">10</div><div class="pkg-l">sinais</div>
       <div class="pkg-p">R$ 50</div><div class="pkg-pp">R$ 5,00/sinal</div>
-    </a>
-    <a class="pkg" href="LINK_MP_25" target="_blank">
+    </div>
+    <div class="pkg" id="pkg-25" onclick="selectPkg(25,100,'pkg-25')">
       <div class="pkg-n">25</div><div class="pkg-l">sinais</div>
       <div class="pkg-p">R$ 100</div><div class="pkg-pp">R$ 4,00/sinal</div>
       <div class="pkg-badge">-20%</div>
-    </a>
-    <a class="pkg" href="LINK_MP_50" target="_blank">
+    </div>
+    <div class="pkg" id="pkg-50" onclick="selectPkg(50,175,'pkg-50')">
       <div class="pkg-n">50</div><div class="pkg-l">sinais</div>
       <div class="pkg-p">R$ 175</div><div class="pkg-pp">R$ 3,50/sinal</div>
       <div class="pkg-badge">-30%</div>
-    </a>
-    <a class="pkg best" href="LINK_MP_100" target="_blank">
+    </div>
+    <div class="pkg best" id="pkg-100" onclick="selectPkg(100,300,'pkg-100')">
       <div class="pkg-n" style="color:var(--gold)">100</div><div class="pkg-l">sinais</div>
       <div class="pkg-p">R$ 300</div><div class="pkg-pp">R$ 3,00/sinal</div>
       <div class="pkg-badge">melhor valor</div>
-    </a>
-  </div>
-  <div class="mp-note">🔒 Pagamento seguro · PIX, cartão e boleto</div>
-
-  <div class="sec">Planos mensais com desconto</div>
-  <div class="plans">
-    <a class="plan" href="LINK_MP_BASIC" target="_blank">
-      <div class="plan-name">Básico</div>
-      <div class="plan-price">R$79<span>/mês</span></div>
-      <div class="plan-desc">20 sinais/mês<br>R$3,95/sinal</div>
-    </a>
-    <a class="plan feat" href="LINK_MP_PRO" target="_blank">
-      <div class="plan-name">Pro ⭐</div>
-      <div class="plan-price">R$149<span>/mês</span></div>
-      <div class="plan-desc">50 sinais/mês<br>R$2,98/sinal</div>
-    </a>
-    <a class="plan" href="LINK_MP_ELITE" target="_blank">
-      <div class="plan-name">Elite</div>
-      <div class="plan-price">R$249<span>/mês</span></div>
-      <div class="plan-desc">100 sinais/mês<br>R$2,49/sinal</div>
-    </a>
+    </div>
   </div>
 
+  <!-- PIX BOX -->
+  <div class="pix-box" id="pix-box">
+    <div class="pix-title">🟢 Pagar via PIX</div>
+    <div class="pix-sub">Realize o pagamento e envie o comprovante. Seus sinais serão liberados em até <b style="color:var(--gold)">30 minutos</b>.</div>
+    <div class="pix-valor" id="pix-valor">R$ 0,00</div>
+
+    <div class="pix-key-wrap">
+      <div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Chave PIX (Email)</div>
+        <div class="pix-key">leonardoanselmog@outlook.com</div>
+      </div>
+      <button class="btn-copy" id="btn-copy" onclick="copyPix()">Copiar</button>
+    </div>
+
+    <div class="pix-steps">
+      <div class="pix-step"><span class="pix-step-n">1.</span><span>Abra o app do seu banco</span></div>
+      <div class="pix-step"><span class="pix-step-n">2.</span><span>Vá em PIX → Pagar → Chave</span></div>
+      <div class="pix-step"><span class="pix-step-n">3.</span><span>Cole a chave: <b style="color:var(--t)">leonardoanselmog@outlook.com</b></span></div>
+      <div class="pix-step"><span class="pix-step-n">4.</span><span>Digite o valor exato: <b id="pix-valor-step" style="color:var(--gold)">R$0</b></span></div>
+      <div class="pix-step"><span class="pix-step-n">5.</span><span>Confirme e envie o comprovante abaixo</span></div>
+    </div>
+
+    <div class="pix-confirm-wrap">
+      <div class="pix-confirm-title">📎 Informe seu e-mail e o ID/número do comprovante:</div>
+      <input type="text" class="pix-confirm-input" id="pix-txid" placeholder="Ex: E00000000202505031423..." maxlength="100">
+      <button class="btn-enviar" onclick="enviarComprovante()">✅ Enviei o PIX — Aguardar liberação</button>
+      <div class="pix-nota">
+        Após confirmar, entraremos em contato pelo email cadastrado.<br>
+        Liberação manual em até 30 minutos em horário comercial.
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO -->
   <div class="sec">Histórico de transações</div>
   <div class="hist" id="d-hist">
     <div style="text-align:center;padding:14px;font-family:var(--mono);font-size:9px;color:var(--t3)">Nenhuma transação ainda</div>
@@ -153,12 +200,17 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </div>
 </div>
 
+<div class="toast-wrap" id="toasts"></div>
+
 <script>
 const SURL='https://dlgzpgqnadlqvmaymzep.supabase.co';
 const SKEY='sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
 const sb=window.supabase.createClient(SURL,SKEY);
-let user,profile;
+let user,profile,selectedPkg=null;
 
+// ================================================================
+// INIT
+// ================================================================
 window.addEventListener('DOMContentLoaded',async()=>{
   const{data:{session}}=await sb.auth.getSession();
   if(!session?.user){window.location.href='auth.html';return;}
@@ -170,6 +222,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('content').style.display='block';
 });
 
+// ================================================================
+// PROFILE
+// ================================================================
 async function loadProfile(){
   const{data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(error||!data){
@@ -180,12 +235,19 @@ async function loadProfile(){
       last_reset:new Date().toISOString().split('T')[0]
     }).select().single();
     profile=np||{credits:3,plan:'free'};
-    await sb.from('transactions').insert({user_id:user.id,type:'bonus',amount:3,description:'Boas-vindas: 3 sinais gratis',created_at:new Date().toISOString()});
+    await sb.from('transactions').insert({
+      user_id:user.id,type:'bonus',amount:3,
+      description:'Boas-vindas: 3 sinais gratis',
+      created_at:new Date().toISOString()
+    });
   } else {
     profile=data;
   }
 }
 
+// ================================================================
+// RENDER
+// ================================================================
 function render(){
   const cr=profile?.credits||0;
   const plan=profile?.plan||'free';
@@ -197,10 +259,78 @@ function render(){
   const bar=document.getElementById('d-bar');
   bar.style.width=pct+'%';
   bar.style.background=cr===0?'#ff4d6a':cr<=3?'#ffb547':'linear-gradient(90deg,#ffd700,#00e896)';
-  document.getElementById('d-sub').textContent=cr+' sinais disponíveis';
+  document.getElementById('d-sub').textContent=cr+' sinal'+(cr!==1?'is':'')+' disponíve'+(cr!==1?'is':'l');
   document.getElementById('zero-msg').style.display=cr===0?'block':'none';
 }
 
+// ================================================================
+// SELECIONAR PACOTE
+// ================================================================
+function selectPkg(sinais,valor,pkgId){
+  // Remove seleção anterior
+  document.querySelectorAll('.pkg').forEach(el=>el.classList.remove('selected'));
+  document.getElementById(pkgId).classList.add('selected');
+  selectedPkg={sinais,valor,pkgId};
+  // Atualiza valores no PIX box
+  const valorStr='R$ '+valor.toFixed(2).replace('.',',');
+  document.getElementById('pix-valor').textContent=valorStr;
+  document.getElementById('pix-valor-step').textContent='R$'+valor;
+  // Mostra PIX box
+  document.getElementById('pix-box').className='pix-box show';
+  document.getElementById('pix-box').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ================================================================
+// COPIAR CHAVE PIX
+// ================================================================
+function copyPix(){
+  navigator.clipboard.writeText('leonardoanselmog@outlook.com').then(()=>{
+    const btn=document.getElementById('btn-copy');
+    btn.textContent='Copiado!';btn.className='btn-copy copied';
+    setTimeout(()=>{btn.textContent='Copiar';btn.className='btn-copy';},2500);
+  });
+}
+
+// ================================================================
+// ENVIAR COMPROVANTE
+// ================================================================
+async function enviarComprovante(){
+  if(!selectedPkg){toast('Selecione um pacote primeiro.','err');return;}
+  const txid=document.getElementById('pix-txid').value.trim();
+  if(!txid){toast('Informe o ID ou número do comprovante.','err');return;}
+
+  // Salva a solicitação no Supabase para você ver e confirmar
+  try{
+    await sb.from('transactions').insert({
+      user_id:user.id,
+      type:'pending',
+      amount:selectedPkg.sinais,
+      description:`PIX PENDENTE: ${selectedPkg.sinais} sinais (R$${selectedPkg.valor}) — Comprovante: ${txid}`,
+      created_at:new Date().toISOString()
+    });
+    // Mostra confirmação
+    document.getElementById('pix-box').innerHTML=`
+      <div style="text-align:center;padding:20px 10px">
+        <div style="font-size:40px;margin-bottom:12px">✅</div>
+        <div style="font-size:15px;font-weight:700;color:var(--g);margin-bottom:8px">Comprovante recebido!</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--t2);line-height:1.7">
+          Pacote: <b style="color:var(--gold)">${selectedPkg.sinais} sinais</b><br>
+          Valor: <b style="color:var(--gold)">R$ ${selectedPkg.valor}</b><br>
+          Comprovante: <b style="color:var(--t)">${txid}</b><br><br>
+          Seus sinais serão liberados em até <b style="color:var(--gold)">30 minutos</b>.<br>
+          Você receberá uma confirmação por email.
+        </div>
+      </div>`;
+    toast('✅ Comprovante enviado! Aguarde a liberação.');
+    await loadHist();
+  }catch(e){
+    toast('Erro ao enviar. Tente novamente.','err');
+  }
+}
+
+// ================================================================
+// HISTÓRICO
+// ================================================================
 async function loadHist(){
   const{data}=await sb.from('transactions').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(10);
   if(!data?.length)return;
@@ -208,14 +338,33 @@ async function loadHist(){
   el.innerHTML=data.map(t=>{
     const d=new Date(t.created_at);
     const pos=t.type!=='usage';
-    const ico=t.type==='usage'?'📊':t.type==='purchase'?'💳':t.type==='bonus'?'🎁':'📦';
-    return `<div class="hi"><div><div class="hi-d">${ico} ${t.description}</div><div class="hi-dt">${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div></div><div class="hi-a ${pos?'pos':'neg'}">${pos?'+':''}${t.amount}</div></div>`;
+    const ico=t.type==='usage'?'📊':t.type==='purchase'?'✅':t.type==='bonus'?'🎁':t.type==='pending'?'⏳':'📦';
+    const clr=t.type==='pending'?'var(--a)':pos?'var(--g)':'var(--r)';
+    return `<div class="hi">
+      <div>
+        <div class="hi-d">${ico} ${t.description.substring(0,50)}${t.description.length>50?'...':''}</div>
+        <div class="hi-dt">${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div class="hi-a" style="color:${clr}">${t.type==='pending'?'⏳':pos?'+':''}${t.type==='pending'?'aguardando':t.amount}</div>
+    </div>`;
   }).join('');
 }
 
+// ================================================================
+// LOGOUT / TOAST
+// ================================================================
 async function logout(){
   await sb.auth.signOut();
   window.location.href='auth.html';
+}
+
+function toast(msg,type){
+  const c=document.getElementById('toasts'),id='t'+Date.now();
+  const d=document.createElement('div');
+  d.className='toast'+(type==='err'?' err':'');
+  d.id=id;d.textContent=msg;
+  c.appendChild(d);
+  setTimeout(()=>{const e=document.getElementById(id);if(e)e.remove();},4000);
 }
 </script>
 </body>
