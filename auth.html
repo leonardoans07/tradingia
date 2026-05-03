@@ -214,12 +214,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Ouve mudanças de auth
     sb.auth.onAuthStateChange(async (event, session) => {
       dbg('Auth event: ' + event);
-      if (session?.user) {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         user = session.user;
         await loadProfile();
         showDash();
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         user = null;
+        profile = null;
         showAuth();
       }
     });
@@ -422,6 +423,7 @@ function showDash() {
   window.scrollTo(0,0);
   updateDash();
   loadTransactions();
+  dbg('Dashboard aberto para: ' + (user?.email||'?'));
 }
 
 function showAuth() {
