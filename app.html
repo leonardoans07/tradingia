@@ -503,7 +503,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
       <option value="XRPUSDT">XRP/USDT — Ripple</option>
     </optgroup>
     <optgroup label="── Forex &amp; Ouro ──">
-      <option value="XAUUSD">XAU/USD — Ouro</option>
+      <option value="PAXGUSDT">XAU/USD — Ouro</option>
       <option value="EURUSDT">EUR/USD — Euro</option>
       <option value="GBPUSDT">GBP/USD — Libra</option>
     </optgroup>
@@ -626,14 +626,14 @@ const STRATS=[
   {id:'bb',   ico:'⊙',clr:'#fde68a',name:'BB Squeeze',  vname:'Bollinger Bands'},
 ];
 const PAIRS={
-  BTCUSDT:{dec:2, type:'crypto', vname:'Bitcoin',  label:'BTC/USDT', src:'binance'},
-  ETHUSDT:{dec:2, type:'crypto', vname:'Ethereum', label:'ETH/USDT', src:'binance'},
-  SOLUSDT:{dec:3, type:'crypto', vname:'Solana',   label:'SOL/USDT', src:'binance'},
-  BNBUSDT:{dec:2, type:'crypto', vname:'BNB',      label:'BNB/USDT', src:'binance'},
-  XRPUSDT:{dec:4, type:'crypto', vname:'Ripple',   label:'XRP/USDT', src:'binance'},
-  XAUUSD: {dec:2, type:'gold',   vname:'Ouro',     label:'XAU/USD',  src:'goldapi'},
-  EURUSDT:{dec:5, type:'forex',  vname:'Euro',     label:'EUR/USD',  src:'binance'},
-  GBPUSDT:{dec:5, type:'forex',  vname:'Libra',    label:'GBP/USD',  src:'binance'},
+  BTCUSDT:{dec:2, type:'crypto', vname:'Bitcoin',    label:'BTC/USDT'},
+  ETHUSDT:{dec:2, type:'crypto', vname:'Ethereum',   label:'ETH/USDT'},
+  SOLUSDT:{dec:3, type:'crypto', vname:'Solana',     label:'SOL/USDT'},
+  BNBUSDT:{dec:2, type:'crypto', vname:'BNB',        label:'BNB/USDT'},
+  XRPUSDT:{dec:4, type:'crypto', vname:'Ripple',     label:'XRP/USDT'},
+  PAXGUSDT:{dec:2,type:'gold',   vname:'Ouro (PAXG)',label:'XAU/USD'},
+  EURUSDT:{dec:5, type:'forex',  vname:'Euro',       label:'EUR/USD'},
+  GBPUSDT:{dec:5, type:'forex',  vname:'Libra',      label:'GBP/USD'},
 };
 const ATR={
   crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006, H1:.009,  H4:.018},
@@ -1212,7 +1212,7 @@ async function updateLiveCandle(){
 function genFakeCandles(){
   const sym=document.getElementById('sel-sym').value;
   const type=PAIRS[sym]?.type||'crypto';
-  const bases={BTCUSDT:78000,ETHUSDT:3100,SOLUSDT:155,BNBUSDT:590,XRPUSDT:0.52,XAUUSD:4620,EURUSDT:1.0850,GBPUSDT:1.2700};
+  const bases={BTCUSDT:78000,ETHUSDT:3100,SOLUSDT:155,BNBUSDT:590,XRPUSDT:0.52,XAUUSDT:4620,EURUSDT:1.0850,GBPUSDT:1.2700};
   const price=LIVE[sym]?.price||bases[sym]||1000;
   const v=type==='gold'?.0008:type==='forex'?.0004:.003;const now=Date.now();candles=[];let p=price*(1-Math.random()*.015);
   for(let i=79;i>=0;i--){const t=now-i*5*60*1000,o=p;const c=o*(1+(Math.random()-.47)*v*2);const h=Math.max(o,c)*(1+Math.random()*v*.4);const l=Math.min(o,c)*(1-Math.random()*v*.4);candles.push({t,o:+o.toFixed(2),h:+h.toFixed(2),l:+l.toFixed(2),c:+c.toFixed(2)});p=c;}
