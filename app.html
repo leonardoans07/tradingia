@@ -1444,12 +1444,15 @@ function renderAlerts(){
   if(!alerts.length){el.innerHTML='<div class="no-al">◈<br>Nenhum alerta ainda<br>Execute a análise</div>';return;}
   el.innerHTML=alerts.map(a=>{
     const cls=a.score>=85?'hi':a.score>=thr?'me':'lo';const scCls=a.score>=85?'hi':a.score>=thr?'me':'lo';const s=a.sltp;const d=s.dec;
+    const isOpen=a.result==='open';
+    const clickHint=isOpen?`<div class="ac-click-hint" id="hint-${a.id}">👆 Clique para ver no gráfico</div>`:'';
+    const clickAttr=isOpen?`onclick="loadAlertOnChart('${a.id}')"`:'' ;
     let resBar='';
     if(a.result==='tp') resBar=`<div class="res-bar rtp"><div class="res-dot"></div>✅ TP atingido! Saída: ${fp(a.exitPrice,d)} · +${s.tpAmt}</div>`;
     else if(a.result==='sl') resBar=`<div class="res-bar rsl"><div class="res-dot"></div>❌ SL atingido. Saída: ${fp(a.exitPrice,d)} · -${s.slAmt}</div>`;
     else if(a.result==='be') resBar=`<div class="res-bar rbe"><div class="res-dot"></div>🛡 Breakeven. Saída: ${fp(a.exitPrice,d)}</div>`;
     else resBar=`<div class="res-bar rop"><div class="res-dot"></div>⏳ Em andamento — ao vivo no gráfico</div>`;
-    return `<div class="ac ${cls}" id="${a.id}">
+    return `<div class="ac ${cls}" id="${a.id}" ${clickAttr}>
       <div class="ac-hdr"><span class="ac-sc ${scCls}">${a.score}</span><div class="ac-meta"><span class="ac-sym">${a.sym}</span><span class="ac-tf2">${a.tf}</span><br><span class="ac-dir ${a.dir==='BUY'?'db':'ds'}">${a.dir}</span>${a.trendType?`<span style="font-family:var(--mono);font-size:8px;color:var(--c);margin-left:5px">${a.trendType}</span>`:''}<div class="ac-str">${a.fired} estrat. · ATR ${s.atrPct}%</div></div><div class="ac-time">${a.time}</div></div>
       <div class="sltp"><div class="sc2"><div class="sc-lbl">Entrada</div><div class="sc-val ep">${fp(s.entry,d)}</div><div class="sc-sub">preço real</div></div><div class="sc2"><div class="sc-lbl">Stop Loss</div><div class="sc-val sl">${fp(s.sl,d)}</div><div class="sc-sub">${s.slPct} · ${s.slAmt}</div></div><div class="sc2"><div class="sc-lbl">Take Profit</div><div class="sc-val tp">${fp(s.tp,d)}</div><div class="sc-sub">${s.tpPct} · ${s.tpAmt}</div></div></div>
       <div class="sltp" style="background:rgba(0,0,0,.15)"><div class="sc2"><div class="sc-lbl" style="color:var(--c)">🛡 Breakeven</div><div class="sc-val be">${fp(s.beLevel,d)}</div><div class="sc-sub">SL→${fp(s.entry,d)}</div></div><div class="sc2"><div class="sc-lbl" style="color:var(--a)">⚡ Trailing</div><div class="sc-val tr">${fp(s.trailLevel,d)}</div><div class="sc-sub">trail ${fp(s.trailStop,d)}</div></div><div class="sc2"><div class="sc-lbl">RR</div><div class="sc-val rr">1:${s.rr.toFixed(1)}</div><div class="sc-sub">score ${a.score}pts</div></div></div>
