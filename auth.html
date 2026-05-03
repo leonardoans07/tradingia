@@ -6,7 +6,7 @@
 <title>IA Xauron — Login</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
 <style>
 :root{
   --bg:#0a0c10;--bg2:#111318;--bg3:#181c24;
@@ -49,7 +49,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .field input::placeholder{color:var(--t3)}
 .btn-submit{
   width:100%;padding:13px;border-radius:8px;border:none;
-  background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:14px;font-weight:700;
+  background:var(--g);color:#000;font-size:14px;font-weight:700;
   cursor:pointer;transition:all .2s;font-family:var(--font);
   display:flex;align-items:center;justify-content:center;gap:8px;
 }
@@ -415,15 +415,24 @@ async function doSignup(){
   const email = document.getElementById('signup-email').value.trim();
   const pass  = document.getElementById('signup-pass').value;
   if(!name || !email || !pass){ showMsg('Preencha todos os campos.','err');return; }
-  if(pass.length<8){ showMsg('Senha deve ter no mínimo 8 caracteres.','err');return; }
+  if(pass.length<6){ showMsg('Senha deve ter no mínimo 6 caracteres.','err');return; }
   setLoading('btn-signup', true);
-  const { error } = await sb.auth.signUp({
-    email, password:pass,
-    options:{ data:{ full_name:name } }
-  });
-  setLoading('btn-signup', false);
-  if(error) showMsg(translateError(error.message),'err');
-  else showMsg('Conta criada! Verifique seu email para confirmar o cadastro.','ok');
+  try{
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password: pass,
+      options:{ data:{ full_name: name } }
+    });
+    setLoading('btn-signup', false);
+    if(error){ showMsg(translateError(error.message),'err'); return; }
+    if(data?.user){
+      showMsg('✅ Conta criada com sucesso! Entrando...','ok');
+      setTimeout(()=>{ window.location.reload(); }, 1500);
+    }
+  }catch(e){
+    setLoading('btn-signup', false);
+    showMsg('Erro de conexão. Tente novamente.','err');
+  }
 }
 
 // ================================================================
