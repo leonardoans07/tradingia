@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IA Xauron — Painel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+<style>
+:root{--bg:#0a0c10;--bg2:#111318;--bg3:#181c24;--b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);--t:#e8eaf0;--t2:#7a8099;--t3:#4a5068;--g:#00e896;--gb:rgba(0,232,150,.08);--gbd:rgba(0,232,150,.25);--r:#ff4d6a;--rb:rgba(255,77,106,.08);--rbd:rgba(255,77,106,.25);--gold:#ffd700;--goldb:rgba(255,215,0,.1);--goldbd:rgba(255,215,0,.3);--mono:'DM Mono',monospace;--font:'Syne',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;width:100%;max-width:420px}
+.card{background:var(--bg2);border:1px solid var(--b2);border-radius:16px;padding:32px;margin-bottom:10px}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.logo-ico{width:34px;height:34px;background:linear-gradient(135deg,#ffd700,#00e896);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000}
+.logo-name{font-size:17px;font-weight:700}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.user-email{font-size:12px;font-weight:500;color:var(--t)}
+.user-plan{font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:2px}
+.btn-sair{background:none;border:1px solid var(--b2);border-radius:6px;padding:5px 12px;color:var(--t2);font-family:var(--mono);font-size:10px;cursor:pointer}
+.btn-sair:hover{color:var(--t)}
+.credits-box{background:var(--bg3);border:1px solid var(--goldbd);border-radius:12px;padding:18px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+.cr-num{font-size:40px;font-weight:700;color:var(--gold);line-height:1;flex-shrink:0}
+.cr-info{flex:1}
+.cr-lbl{font-family:var(--mono);font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.cr-bar-track{background:var(--b);border-radius:3px;height:6px;overflow:hidden;margin-bottom:5px}
+.cr-bar-fill{height:6px;border-radius:3px;transition:width .4s}
+.cr-bar-lbl{font-family:var(--mono);font-size:9px;color:var(--t2)}
+.sec-lbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin-bottom:10px}
+.pkgs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.pkg{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:14px 12px;text-align:center;cursor:pointer;transition:all .15s}
+.pkg:hover{border-color:var(--b2);transform:translateY(-1px)}
+.pkg.best{border-color:var(--goldbd)}
+.pkg-n{font-size:24px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:2px}
+.pkg-l{font-family:var(--mono);font-size:8px;color:var(--t3);text-transform:uppercase;margin-bottom:8px}
+.pkg-p{font-size:15px;font-weight:700}
+.pkg-pp{font-family:var(--mono);font-size:8px;color:var(--t3);margin-top:2px}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.plan{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:14px 16px;cursor:pointer;transition:all .15s}
+.plan:hover{border-color:var(--b2)}
+.plan.best{border-color:var(--goldbd)}
+.plan-name{font-family:var(--mono);font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:4px}
+.plan-price{font-size:18px;font-weight:700;color:var(--g)}
+.plan-price span{font-size:10px;color:var(--t3);font-weight:400}
+.plan-desc{font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:4px}
+.hist-list{display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto;margin-bottom:20px}
+.hi{background:var(--bg3);border:1px solid var(--b);border-radius:6px;padding:7px 11px;display:flex;justify-content:space-between;align-items:center}
+.hi-desc{font-size:11px;font-weight:500}
+.hi-date{font-family:var(--mono);font-size:9px;color:var(--t3)}
+.hi-amt{font-family:var(--mono);font-size:11px;font-weight:500}
+.pos{color:var(--g)}.neg{color:var(--r)}
+.btn-app{width:100%;padding:13px;border-radius:9px;border:none;background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;font-family:var(--font)}
+.btn-app:hover{opacity:.9;transform:translateY(-1px)}
+.spin{display:inline-block;width:28px;height:28px;border:3px solid var(--b2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{text-align:center;padding:40px}
+.loading p{font-family:var(--mono);font-size:11px;color:var(--t2);margin-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="main-card">
+    <div class="loading" id="loading">
+      <div class="spin"></div>
+      <p>Carregando painel...</p>
+    </div>
+    <div id="content" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div class="logo-ico">⚡</div>
+        <span class="logo-name">IA Xauron</span>
+        <div style="flex:1"></div>
+        <button class="btn-sair" onclick="doLogout()">Sair</button>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:500" id="d-email">--</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:2px" id="d-plan">Plano Free</div>
+      </div>
+
+      <div class="credits-box">
+        <div class="cr-num" id="d-credits">--</div>
+        <div class="cr-info">
+          <div class="cr-lbl">créditos disponíveis</div>
+          <div class="cr-bar-track"><div class="cr-bar-fill" id="d-bar" style="width:0%"></div></div>
+          <div class="cr-bar-lbl" id="d-bar-lbl">carregando...</div>
+        </div>
+      </div>
+
+      <div class="sec-lbl">Comprar créditos</div>
+      <div class="pkgs">
+        <div class="pkg" onclick="buyCredits(50,19)"><div class="pkg-n">50</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 19</div><div class="pkg-pp">R$0,38/análise</div></div>
+        <div class="pkg" onclick="buyCredits(200,59)"><div class="pkg-n">200</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 59</div><div class="pkg-pp">R$0,30/análise</div></div>
+        <div class="pkg" onclick="buyCredits(500,129)"><div class="pkg-n">500</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 129</div><div class="pkg-pp">R$0,26/análise</div></div>
+        <div class="pkg best" onclick="buyCredits(1000,199)"><div class="pkg-n" style="color:var(--gold)">1000</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 199</div><div class="pkg-pp" style="color:var(--g)">melhor custo</div></div>
+      </div>
+
+      <div class="sec-lbl">Planos mensais</div>
+      <div class="plans">
+        <div class="plan" onclick="alert('Mercado Pago em breve!')"><div class="plan-name">PRO</div><div class="plan-price">R$49<span>/mês</span></div><div class="plan-desc">200 análises/dia</div></div>
+        <div class="plan best" onclick="alert('Mercado Pago em breve!')"><div class="plan-name">ELITE</div><div class="plan-price">R$149<span>/mês</span></div><div class="plan-desc">Ilimitado + Telegram</div></div>
+      </div>
+
+      <div class="sec-lbl">Histórico de transações</div>
+      <div class="hist-list" id="d-hist">
+        <div style="text-align:center;padding:12px;font-family:var(--mono);font-size:9px;color:var(--t3)">Nenhuma transação ainda</div>
+      </div>
+
+      <a href="app.html" class="btn-app">⚡ Acessar plataforma →</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const SURL = 'https://dlgzpgqnadlqvmaymzep.supabase.co';
+const SKEY = 'sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
+let sb, user, profile;
+
+window.addEventListener('DOMContentLoaded', async () => {
+  sb = window.supabase.createClient(SURL, SKEY);
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session?.user) {
+    window.location.href = 'auth.html';
+    return;
+  }
+  user = session.user;
+  await loadProfile();
+  renderDash();
+});
+
+async function loadProfile() {
+  const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  if (error || !data) {
+    // Cria perfil se não existe
+    const { data: newP } = await sb.from('profiles').insert({
+      id: user.id, email: user.email,
+      name: user.user_metadata?.full_name || user.email,
+      plan: 'free', credits: 10, credits_used_today: 0,
+      last_reset: new Date().toISOString().split('T')[0]
+    }).select().single();
+    profile = newP || { credits: 10, plan: 'free' };
+    // Registra bônus de boas-vindas
+    await sb.from('transactions').insert({
+      user_id: user.id, type: 'bonus', amount: 10,
+      description: 'Créditos de boas-vindas (plano Free)',
+      created_at: new Date().toISOString()
+    });
+  } else {
+    profile = data;
+  }
+}
+
+function renderDash() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+  document.getElementById('d-email').textContent = user.email;
+  const plan = profile?.plan || 'free';
+  document.getElementById('d-plan').textContent = 'Plano ' + plan.charAt(0).toUpperCase() + plan.slice(1);
+  const cr = profile?.credits || 0;
+  document.getElementById('d-credits').textContent = cr;
+  const pct = Math.min(100, plan === 'elite' ? 100 : cr);
+  const bar = document.getElementById('d-bar');
+  bar.style.width = pct + '%';
+  bar.style.background = cr < 5 ? '#ff4d6a' : cr < 20 ? '#ffb547' : 'linear-gradient(90deg,#ffd700,#00e896)';
+  document.getElementById('d-bar-lbl').textContent = cr + ' créditos · plano ' + plan;
+  loadTransactions();
+}
+
+async function loadTransactions() {
+  const { data } = await sb.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(8);
+  const el = document.getElementById('d-hist');
+  if (!data?.length) return;
+  el.innerHTML = data.map(t => {
+    const d = new Date(t.created_at);
+    const isPos = t.type !== 'usage';
+    return `<div class="hi"><div><div class="hi-desc">${t.description}</div><div class="hi-date">${d.toLocaleDateString('pt-BR')}</div></div><div class="hi-amt ${isPos?'pos':'neg'}">${isPos?'+':''}${t.amount}</div></div>`;
+  }).join('');
+}
+
+async function buyCredits(amount, price) {
+  if (!confirm(`Comprar ${amount} análises por R$${price}?\n\n(Integração Mercado Pago em breve)`)) return;
+  const newCr = (profile?.credits || 0) + amount;
+  await sb.from('profiles').update({ credits: newCr }).eq('id', user.id);
+  await sb.from('transactions').insert({ user_id: user.id, type: 'purchase', amount, description: `Compra ${amount} créditos — R$${price}`, created_at: new Date().toISOString() });
+  profile.credits = newCr;
+  renderDash();
+  alert(`✅ ${amount} créditos adicionados!`);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'auth.html';
+}
+</script>
+</body>
+</html>

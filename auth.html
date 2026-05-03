@@ -5,127 +5,73 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IA Xauron — Login</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Supabase v2 CDN estável -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
 <style>
-:root{
-  --bg:#0a0c10;--bg2:#111318;--bg3:#181c24;
-  --b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);
-  --t:#e8eaf0;--t2:#7a8099;--t3:#4a5068;
-  --g:#00e896;--gb:rgba(0,232,150,.08);--gbd:rgba(0,232,150,.25);
-  --r:#ff4d6a;--rb:rgba(255,77,106,.08);--rbd:rgba(255,77,106,.25);
-  --gold:#ffd700;--goldb:rgba(255,215,0,.1);--goldbd:rgba(255,215,0,.3);
-  --c:#00d4ff;--cb:rgba(0,212,255,.08);--cbd:rgba(0,212,255,.25);
-  --rad:10px;--mono:'DM Mono',monospace;--font:'Syne',sans-serif;
-}
+:root{--bg:#0a0c10;--bg2:#111318;--bg3:#181c24;--b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.13);--t:#e8eaf0;--t2:#7a8099;--t3:#4a5068;--g:#00e896;--gb:rgba(0,232,150,.08);--gbd:rgba(0,232,150,.25);--r:#ff4d6a;--rb:rgba(255,77,106,.08);--rbd:rgba(255,77,106,.25);--gold:#ffd700;--goldb:rgba(255,215,0,.1);--goldbd:rgba(255,215,0,.3);--mono:'DM Mono',monospace;--font:'Syne',sans-serif}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--t);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.013) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-.wrap{position:relative;z-index:1;width:100%;max-width:420px}
-
+.wrap{position:relative;z-index:1;width:100%;max-width:400px}
 .card{background:var(--bg2);border:1px solid var(--b2);border-radius:16px;padding:32px;margin-bottom:10px}
 .logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;justify-content:center}
 .logo-ico{width:38px;height:38px;background:linear-gradient(135deg,#ffd700,#00e896);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#000}
 .logo-name{font-size:20px;font-weight:700}
-
-/* TABS */
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--bg3);border-radius:8px;padding:3px;margin-bottom:22px}
 .tab{padding:8px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;border:none;background:transparent;color:var(--t2);font-family:var(--font)}
 .tab.active{background:var(--bg2);color:var(--t);border:1px solid var(--b2)}
-
-/* FORM */
 .field{margin-bottom:14px}
 .field label{display:block;font-family:var(--mono);font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
 .field input{width:100%;background:var(--bg3);border:1px solid var(--b2);border-radius:8px;padding:10px 13px;color:var(--t);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .15s}
 .field input:focus{border-color:var(--goldbd)}
 .field input::placeholder{color:var(--t3)}
-
 .btn-main{width:100%;padding:12px;border-radius:8px;border:none;background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-main:hover{opacity:.9;transform:translateY(-1px)}
-.btn-main:disabled{opacity:.6;cursor:not-allowed;transform:none}
-
-.divider{display:flex;align-items:center;gap:10px;margin:14px 0}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--b)}
-.divider span{font-family:var(--mono);font-size:10px;color:var(--t3)}
-
-.btn-google{width:100%;padding:10px;border-radius:8px;border:1px solid var(--b2);background:transparent;color:var(--t);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;font-family:var(--font)}
-.btn-google:hover{background:rgba(255,255,255,.04)}
-
-/* MENSAGENS */
+.btn-main:hover{opacity:.9}
+.btn-main:disabled{opacity:.6;cursor:not-allowed}
 .msg{padding:10px 13px;border-radius:7px;font-family:var(--mono);font-size:11px;margin-bottom:12px;display:none;line-height:1.5}
 .msg.err{background:var(--rb);border:1px solid var(--rbd);color:var(--r);display:block}
 .msg.ok{background:var(--gb);border:1px solid var(--gbd);color:var(--g);display:block}
-
-/* DEBUG */
-.debug-box{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-family:var(--mono);font-size:10px;color:var(--t2);display:none;max-height:100px;overflow-y:auto}
-.debug-box.visible{display:block}
-
-/* DASHBOARD */
-#dashboard{display:none}
-.dash-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.user-info .email{font-size:12px;font-weight:500}
-.user-info .plan{font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:2px}
-.btn-sair{background:none;border:1px solid var(--b2);border-radius:6px;padding:4px 11px;color:var(--t2);font-family:var(--mono);font-size:10px;cursor:pointer}
-.btn-sair:hover{color:var(--t)}
-
-.credits-box{background:var(--bg3);border:1px solid var(--goldbd);border-radius:10px;padding:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
-.cr-num{font-size:36px;font-weight:700;color:var(--gold);line-height:1}
-.cr-lbl{font-family:var(--mono);font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
-.cr-bar-wrap{flex:1;margin:0 16px}
-.cr-bar-track{background:var(--b);border-radius:3px;height:6px;overflow:hidden;margin-bottom:5px}
-.cr-bar-fill{height:6px;background:linear-gradient(90deg,#ffd700,#00e896);border-radius:3px;transition:width .4s}
-.cr-bar-lbl{font-family:var(--mono);font-size:9px;color:var(--t2)}
-
-.sec-lbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin-bottom:10px}
-.pkgs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.pkg{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:all .15s}
-.pkg:hover{border-color:var(--b2);transform:translateY(-1px)}
-.pkg.best{border-color:var(--goldbd)}
-.pkg-n{font-size:22px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:2px}
-.pkg-l{font-family:var(--mono);font-size:8px;color:var(--t3);text-transform:uppercase;margin-bottom:8px}
-.pkg-p{font-size:15px;font-weight:700}
-.pkg-pp{font-family:var(--mono);font-size:8px;color:var(--t3);margin-top:2px}
-
-.btn-plataforma{width:100%;padding:12px;border-radius:8px;border:none;margin-top:14px;background:linear-gradient(135deg,#ffd700,#00e896);color:#000;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;font-family:var(--font)}
-.btn-plataforma:hover{opacity:.9;transform:translateY(-1px)}
-
-.hist-list{display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto}
-.hi{background:var(--bg3);border:1px solid var(--b);border-radius:6px;padding:7px 11px;display:flex;justify-content:space-between;align-items:center}
-.hi-desc{font-size:11px;font-weight:500}
-.hi-date{font-family:var(--mono);font-size:9px;color:var(--t3)}
-.hi-amt{font-family:var(--mono);font-size:11px;font-weight:500}
-.pos{color:var(--g)}.neg{color:var(--r)}
-
+.divider{display:flex;align-items:center;gap:10px;margin:14px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--b)}
+.divider span{font-family:var(--mono);font-size:10px;color:var(--t3)}
+.btn-google{width:100%;padding:10px;border-radius:8px;border:1px solid var(--b2);background:transparent;color:var(--t);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;font-family:var(--font)}
+.btn-google:hover{background:rgba(255,255,255,.04)}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .footer-note{font-family:var(--mono);font-size:9px;color:var(--t3);text-align:center;line-height:1.7}
 .footer-note a{color:var(--t2);text-decoration:none}
+.loading-screen{text-align:center;padding:40px;display:none}
+.loading-screen.show{display:block}
+.loading-screen .spin2{display:inline-block;width:32px;height:32px;border:3px solid var(--b2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
+.loading-screen p{font-family:var(--mono);font-size:11px;color:var(--t2)}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <!-- AUTH CARD -->
-  <div id="auth-card" class="card">
+  <!-- Loading -->
+  <div class="loading-screen" id="loading-screen">
+    <div class="spin2"></div>
+    <p id="loading-msg">Verificando sessão...</p>
+  </div>
+
+  <!-- Login Card -->
+  <div id="login-card" class="card" style="display:none">
     <div class="logo">
       <div class="logo-ico">⚡</div>
       <span class="logo-name">IA Xauron</span>
     </div>
-
     <div class="tabs">
       <button class="tab active" id="tab-login" onclick="switchTab('login')">Entrar</button>
       <button class="tab" id="tab-signup" onclick="switchTab('signup')">Criar conta</button>
     </div>
-
     <div id="msg" class="msg"></div>
-    <div id="debug" class="debug-box"></div>
 
     <!-- LOGIN -->
     <div id="form-login">
-      <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="seu@email.com"></div>
+      <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <div class="field"><label>Senha</label><input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <button class="btn-main" id="btn-login" onclick="doLogin()">Entrar na plataforma →</button>
-      <div style="text-align:right;margin-top:8px"><a href="#" style="font-family:var(--mono);font-size:10px;color:var(--t2)" onclick="switchTab('reset')">Esqueci minha senha</a></div>
+      <div style="text-align:right;margin-top:8px"><a href="#" style="font-family:var(--mono);font-size:10px;color:var(--t2)" onclick="switchTab('reset');return false">Esqueci minha senha</a></div>
     </div>
 
     <!-- SIGNUP -->
@@ -146,238 +92,109 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <p style="font-size:13px;color:var(--t2);margin-bottom:16px">Enviaremos um link para redefinir sua senha.</p>
       <div class="field"><label>Email</label><input type="email" id="r-email" placeholder="seu@email.com"></div>
       <button class="btn-main" onclick="doReset()">Enviar link →</button>
-      <div style="text-align:center;margin-top:10px"><a href="#" style="font-family:var(--mono);font-size:10px;color:var(--t2)" onclick="switchTab('login')">← Voltar</a></div>
+      <div style="text-align:center;margin-top:10px"><a href="#" style="font-family:var(--mono);font-size:10px;color:var(--t2)" onclick="switchTab('login');return false">← Voltar</a></div>
     </div>
   </div>
 
-  <!-- DASHBOARD -->
-  <div id="dashboard" class="card">
-    <div class="dash-hdr">
-      <div class="user-info">
-        <div class="email" id="d-email">--</div>
-        <div class="plan" id="d-plan">Plano Free</div>
-      </div>
-      <button class="btn-sair" onclick="doLogout()">Sair</button>
-    </div>
-
-    <div class="credits-box">
-      <div>
-        <div class="cr-num" id="d-credits">--</div>
-        <div class="cr-lbl">créditos</div>
-      </div>
-      <div class="cr-bar-wrap">
-        <div class="cr-bar-track"><div class="cr-bar-fill" id="d-bar" style="width:0%"></div></div>
-        <div class="cr-bar-lbl" id="d-bar-lbl">carregando...</div>
-      </div>
-    </div>
-
-    <div class="sec-lbl">Comprar créditos</div>
-    <div class="pkgs">
-      <div class="pkg" onclick="buyCredits(50,19)"><div class="pkg-n">50</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 19</div><div class="pkg-pp">R$ 0,38/análise</div></div>
-      <div class="pkg" onclick="buyCredits(200,59)"><div class="pkg-n">200</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 59</div><div class="pkg-pp">R$ 0,30/análise</div></div>
-      <div class="pkg" onclick="buyCredits(500,129)"><div class="pkg-n">500</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 129</div><div class="pkg-pp">R$ 0,26/análise</div></div>
-      <div class="pkg best" onclick="buyCredits(1000,199)"><div class="pkg-n" style="color:var(--gold)">1000</div><div class="pkg-l">análises</div><div class="pkg-p">R$ 199</div><div class="pkg-pp" style="color:var(--g)">melhor custo</div></div>
-    </div>
-
-    <div class="sec-lbl">Histórico</div>
-    <div class="hist-list" id="d-hist"><div style="text-align:center;padding:12px;font-family:var(--mono);font-size:9px;color:var(--t3)">Nenhuma transação ainda</div></div>
-
-    <a href="app.html" class="btn-plataforma">⚡ Acessar plataforma →</a>
-  </div>
-
-  <div class="footer-note">
+  <div class="footer-note" id="footer-note" style="display:none">
     Ao criar conta você concorda com os <a href="#">Termos de Uso</a> e <a href="#">Política de Privacidade</a><br>
     © 2025 IA Xauron
   </div>
 </div>
 
 <script>
-// ================================================================
-// CONFIG SUPABASE
-// ================================================================
 const SURL = 'https://dlgzpgqnadlqvmaymzep.supabase.co';
 const SKEY = 'sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
-
 let sb = null;
-let user = null;
-let profile = null;
 
-// ================================================================
-// INIT
-// ================================================================
+function showLoading(msg) {
+  document.getElementById('loading-screen').className = 'loading-screen show';
+  document.getElementById('loading-msg').textContent = msg || 'Carregando...';
+  document.getElementById('login-card').style.display = 'none';
+  document.getElementById('footer-note').style.display = 'none';
+}
+
+function showLogin() {
+  document.getElementById('loading-screen').className = 'loading-screen';
+  document.getElementById('login-card').style.display = 'block';
+  document.getElementById('footer-note').style.display = 'block';
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
-  dbg('Iniciando...');
+  showLoading('Verificando sessão...');
   try {
     sb = window.supabase.createClient(SURL, SKEY);
-    dbg('Supabase conectado');
-
-    // Ouve mudanças de auth
-    sb.auth.onAuthStateChange(async (event, session) => {
-      dbg('Auth event: ' + event);
-      if (event === 'SIGNED_IN') {
-        user = session.user;
-        dbg('SIGNED_IN - redirecionando para dashboard');
-        // Salva email na sessão local e mostra dashboard inline
-        await loadProfile();
-        // Força exibição do dashboard
-        const authCard = document.getElementById('auth-card');
-        const dash = document.getElementById('dashboard');
-        if(authCard) authCard.style.cssText = 'display:none!important';
-        if(dash) {
-          dash.style.cssText = 'display:block!important';
-          dash.removeAttribute('hidden');
-        }
-        updateDash();
-        loadTransactions();
-        window.scrollTo(0,0);
-        dbg('Dashboard forçado');
-      } else if (event === 'SIGNED_OUT') {
-        user = null;
-        profile = null;
-        const authCard = document.getElementById('auth-card');
-        const dash = document.getElementById('dashboard');
-        if(authCard) authCard.style.cssText = 'display:block!important';
-        if(dash) dash.style.cssText = 'display:none!important';
-      }
-    });
-
-    // Verifica sessão atual
-    const { data: { session }, error } = await sb.auth.getSession();
-    dbg('Session check: ' + (session ? 'logado' : 'não logado'));
-    if (error) dbg('Erro session: ' + error.message);
+    const { data: { session } } = await sb.auth.getSession();
     if (session?.user) {
-      user = session.user;
-      await loadProfile();
-      showDash();
+      // Já logado — vai direto para o dashboard
+      showLoading('Redirecionando...');
+      window.location.href = 'dashboard.html';
+    } else {
+      showLogin();
     }
-  } catch (e) {
-    dbg('ERRO FATAL: ' + e.message);
-    showMsg('Erro ao conectar. Recarregue a página.', 'err');
+  } catch(e) {
+    console.error(e);
+    showLogin();
+    showMsg('Erro ao conectar com o servidor.', 'err');
   }
 });
 
-// ================================================================
-// PROFILE
-// ================================================================
-async function loadProfile() {
-  if (!sb || !user) return;
-  try {
-    const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).single();
-    if (error) {
-      dbg('Profile error: ' + error.message);
-      // Cria perfil manualmente se não existe
-      await createProfile();
-    } else {
-      profile = data;
-      dbg('Profile carregado: ' + data.credits + ' créditos');
-    }
-  } catch (e) {
-    dbg('loadProfile exception: ' + e.message);
-  }
-}
-
-async function createProfile() {
-  try {
-    const { data, error } = await sb.from('profiles').insert({
-      id: user.id,
-      email: user.email,
-      name: user.user_metadata?.full_name || user.email,
-      plan: 'free',
-      credits: 10,
-      credits_used_today: 0,
-      last_reset: new Date().toISOString().split('T')[0]
-    }).select().single();
-    if (error) dbg('createProfile error: ' + error.message);
-    else { profile = data; dbg('Perfil criado: 10 créditos'); }
-  } catch (e) {
-    dbg('createProfile exception: ' + e.message);
-  }
-}
-
-// ================================================================
-// LOGIN
-// ================================================================
 async function doLogin() {
   const email = document.getElementById('l-email').value.trim();
   const pass  = document.getElementById('l-pass').value;
   if (!email || !pass) { showMsg('Preencha email e senha.', 'err'); return; }
-  setBtn('btn-login', true, 'Entrando...');
-  dbg('Tentando login: ' + email);
+  setBtn('btn-login', true);
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
     if (error) {
-      dbg('Login error: ' + error.message);
       showMsg(tradErr(error.message), 'err');
-      setBtn('btn-login', false, 'Entrar na plataforma →');
+      setBtn('btn-login', false);
     } else {
-      dbg('Login OK: ' + data.user.email);
-      // onAuthStateChange vai cuidar do redirecionamento
+      showLoading('Login realizado! Abrindo plataforma...');
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
     }
-  } catch (e) {
-    dbg('Login exception: ' + e.message);
+  } catch(e) {
     showMsg('Erro de conexão. Tente novamente.', 'err');
-    setBtn('btn-login', false, 'Entrar na plataforma →');
+    setBtn('btn-login', false);
   }
 }
 
-// ================================================================
-// SIGNUP
-// ================================================================
 async function doSignup() {
   const name  = document.getElementById('s-name').value.trim();
   const email = document.getElementById('s-email').value.trim();
   const pass  = document.getElementById('s-pass').value;
   if (!name || !email || !pass) { showMsg('Preencha todos os campos.', 'err'); return; }
   if (pass.length < 6) { showMsg('Senha mínimo 6 caracteres.', 'err'); return; }
-  setBtn('btn-signup', true, 'Criando conta...');
-  dbg('Criando conta: ' + email);
+  setBtn('btn-signup', true);
   try {
-    const { data, error } = await sb.auth.signUp({
-      email,
-      password: pass,
-      options: { data: { full_name: name } }
-    });
+    const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
     if (error) {
-      dbg('Signup error: ' + error.message);
       showMsg(tradErr(error.message), 'err');
-      setBtn('btn-signup', false, 'Criar conta grátis →');
-    } else if (data?.user) {
-      dbg('Signup OK: ' + data.user.email);
+      setBtn('btn-signup', false);
+    } else {
       showMsg('✅ Conta criada! Fazendo login...', 'ok');
-      // Faz login automático
       setTimeout(async () => {
-        const { error: loginErr } = await sb.auth.signInWithPassword({ email, password: pass });
-        if (loginErr) {
-          showMsg('Conta criada! Faça login manualmente.', 'ok');
+        const { error: e2 } = await sb.auth.signInWithPassword({ email, password: pass });
+        if (!e2) {
+          showLoading('Abrindo plataforma...');
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+        } else {
+          setBtn('btn-signup', false);
           switchTab('login');
           document.getElementById('l-email').value = email;
         }
       }, 1000);
     }
-  } catch (e) {
-    dbg('Signup exception: ' + e.message);
+  } catch(e) {
     showMsg('Erro de conexão. Tente novamente.', 'err');
-    setBtn('btn-signup', false, 'Criar conta grátis →');
+    setBtn('btn-signup', false);
   }
 }
 
-// ================================================================
-// GOOGLE
-// ================================================================
 async function doGoogle() {
-  try {
-    await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.href }
-    });
-  } catch (e) {
-    showMsg('Erro ao abrir Google.', 'err');
-  }
+  await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/dashboard.html' } });
 }
 
-// ================================================================
-// RESET
-// ================================================================
 async function doReset() {
   const email = document.getElementById('r-email').value.trim();
   if (!email) { showMsg('Informe seu email.', 'err'); return; }
@@ -386,91 +203,13 @@ async function doReset() {
   else showMsg('Link enviado! Verifique seu email.', 'ok');
 }
 
-// ================================================================
-// LOGOUT
-// ================================================================
-async function doLogout() {
-  await sb.auth.signOut();
-}
-
-// ================================================================
-// COMPRAR CRÉDITOS (simulado — integrar MP/Stripe depois)
-// ================================================================
-async function buyCredits(amount, price) {
-  if (!confirm(`Comprar ${amount} análises por R$ ${price}?\n\n(Integração com Mercado Pago em breve)`)) return;
-  if (!sb || !user) return;
-  const newCredits = (profile?.credits || 0) + amount;
-  const { error } = await sb.from('profiles').update({ credits: newCredits }).eq('id', user.id);
-  if (!error) {
-    profile.credits = newCredits;
-    await addTransaction('purchase', amount, `Compra de ${amount} créditos — R$ ${price}`);
-    updateDash();
-    alert(`✅ ${amount} créditos adicionados!`);
-  }
-}
-
-async function addTransaction(type, amount, desc) {
-  if (!sb || !user) return;
-  await sb.from('transactions').insert({
-    user_id: user.id, type, amount,
-    description: desc,
-    created_at: new Date().toISOString()
-  });
-}
-
-async function loadTransactions() {
-  if (!sb || !user) return;
-  const { data } = await sb.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(8);
-  const el = document.getElementById('d-hist');
-  if (!data?.length) { el.innerHTML = '<div style="text-align:center;padding:12px;font-family:var(--mono);font-size:9px;color:var(--t3)">Nenhuma transação ainda</div>'; return; }
-  el.innerHTML = data.map(t => {
-    const d = new Date(t.created_at);
-    const isPos = t.type !== 'usage';
-    return `<div class="hi"><div><div class="hi-desc">${t.description}</div><div class="hi-date">${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div></div><div class="hi-amt ${isPos?'pos':'neg'}">${isPos?'+':''}${t.amount} créditos</div></div>`;
-  }).join('');
-}
-
-// ================================================================
-// UI
-// ================================================================
-function showDash() {
-  const authCard = document.getElementById('auth-card');
-  const dash = document.getElementById('dashboard');
-  if(authCard) authCard.style.cssText = 'display:none!important';
-  if(dash) {
-    dash.style.cssText = 'display:block!important';
-    dash.removeAttribute('hidden');
-  }
-  window.scrollTo(0,0);
-  updateDash();
-  loadTransactions();
-  dbg('showDash chamado para: ' + (user?.email||'?'));
-}
-
-function showAuth() {
-  document.getElementById('auth-card').style.display = 'block';
-  document.getElementById('dashboard').style.display = 'none';
-}
-
-function updateDash() {
-  if (!user) return;
-  document.getElementById('d-email').textContent = user.email;
-  document.getElementById('d-plan').textContent = 'Plano ' + (profile?.plan || 'Free').charAt(0).toUpperCase() + (profile?.plan || 'free').slice(1);
-  const cr = profile?.credits || 0;
-  document.getElementById('d-credits').textContent = cr;
-  const pct = Math.min(100, cr / 10 * 100);
-  document.getElementById('d-bar').style.width = pct + '%';
-  document.getElementById('d-bar').style.background = cr < 5 ? '#ff4d6a' : cr < 20 ? '#ffb547' : 'linear-gradient(90deg,#ffd700,#00e896)';
-  document.getElementById('d-bar-lbl').textContent = cr + ' disponíveis · plano ' + (profile?.plan || 'free');
-}
-
 function switchTab(tab) {
   ['login','signup','reset'].forEach(t => {
-    document.getElementById('form-' + t).style.display = t === tab ? 'block' : 'none';
-    const tabEl = document.getElementById('tab-' + t);
-    if (tabEl) tabEl.className = 'tab' + (t === tab ? ' active' : '');
+    document.getElementById('form-'+t).style.display = t===tab?'block':'none';
+    const el = document.getElementById('tab-'+t);
+    if(el) el.className = 'tab'+(t===tab?' active':'');
   });
-  clearMsg();
+  document.getElementById('msg').className='msg';
 }
 
 function showMsg(text, type) {
@@ -478,31 +217,21 @@ function showMsg(text, type) {
   el.textContent = text;
   el.className = 'msg ' + type;
 }
-function clearMsg() { document.getElementById('msg').className = 'msg'; }
 
-function setBtn(id, loading, text) {
+function setBtn(id, loading) {
   const btn = document.getElementById(id);
   if (!btn) return;
   btn.disabled = loading;
-  btn.innerHTML = loading ? '<span class="spin"></span> ' + text : text;
-}
-
-function dbg(msg) {
-  console.log('[IA Xauron]', msg);
-  // Mostra debug em desenvolvimento — remove em produção
-  // const el = document.getElementById('debug');
-  // el.className = 'debug-box visible';
-  // el.innerHTML += msg + '<br>';
-  // el.scrollTop = el.scrollHeight;
+  const labels = { 'btn-login': 'Entrar na plataforma →', 'btn-signup': 'Criar conta grátis →' };
+  btn.innerHTML = loading ? '<span class="spin"></span> Aguarde...' : labels[id];
 }
 
 function tradErr(msg) {
   const map = {
     'Invalid login credentials': 'Email ou senha incorretos.',
     'Email not confirmed': 'Confirme seu email antes de entrar.',
-    'User already registered': 'Este email já está cadastrado. Faça login.',
+    'User already registered': 'Email já cadastrado. Faça login.',
     'Password should be at least 6 characters': 'Senha mínima: 6 caracteres.',
-    'Unable to validate email address: invalid format': 'Email inválido.',
     'Email rate limit exceeded': 'Muitas tentativas. Aguarde alguns minutos.',
   };
   return map[msg] || msg;
