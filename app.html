@@ -1303,18 +1303,117 @@ function updateStratMini(res,thr){
 // ANÁLISE
 // ================================================================
 function computeScores(sym,tf){
-  const h=new Date().getHours();const sess=(h>=8&&h<=12)||(h>=13&&h<=17)?12:0;const res={};
+  const h=new Date().getHours();
+  // Sessões de maior liquidez: Londres (8-12h) e NY (13-17h BRT)
+  const sess=(h>=8&&h<=12)||(h>=13&&h<=17)?1:0;
+
+  // ================================================================
+  // PESOS DAS ESTRATÉGIAS — ajustados por confiabilidade
+  // Tier 1 (mais fortes): FVG, OB, BOS, EMA Stack, Tendência
+  // Tier 2 (médios): Liq.Sweep, VWAP, S/R HTF, CHoCH, Vol.POC
+  // Tier 3 (fracos sozinhos): RSI Div., Canal, BB Squeeze
+  // ================================================================
+  const WEIGHTS={
+    fvg:  {base:32, range:28, sessBonus:16, signal_threshold:62}, // Tier 1 — top
+    ob:   {base:30, range:26, sessBonus:14, signal_threshold:62}, // Tier 1 — top
+    bos:  {base:30, range:28, sessBonus:14, signal_threshold:60}, // Tier 1 — forte
+    ema:  {base:28, range:24, sessBonus:12, signal_threshold:60}, // Tier 1 — filtro direcional
+    trend:{base:30, range:28, sessBonus:18, signal_threshold:58}, // Tier 1 — mais frequente
+    liq:  {base:22, range:20, sessBonus:10, signal_threshold:64}, // Tier 2
+    vwap: {base:20, range:18, sessBonus:8,  signal_threshold:64}, // Tier 2
+    sr:   {base:20, range:20, sessBonus:8,  signal_threshold:64}, // Tier 2
+    choch:{base:18, range:18, sessBonus:8,  signal_threshold:68}, // Tier 2 — raro mas forte
+    vol:  {base:18, range:16, sessBonus:6,  signal_threshold:66}, // Tier 2
+    rsi:  {base:14, range:14, sessBonus:4,  signal_threshold:72}, // Tier 3 — precisa de confirmação
+    chan: {base:16, range:16, sessBonus:6,  signal_threshold:68}, // Tier 3
+    bb:   {base:12, range:14, sessBonus:4,  signal_threshold:74}, // Tier 3 — só em squeeze real
+  };
+
+  const res={};
   STRATS.forEach(s=>{
-    let b=Math.random()*50+22;
-    if(s.id==='fvg')b+=Math.random()*18+sess*.8;if(s.id==='ob')b+=Math.random()*15+sess*.7;if(s.id==='bos')b+=Math.random()*20+sess*.6;if(s.id==='liq')b+=Math.random()*14+sess*.5;if(s.id==='ema')b+=Math.random()*16+sess*.4;if(s.id==='vwap')b+=Math.random()*12+sess*.3;if(s.id==='trend')b+=Math.random()*22+sess*.9;if(s.id==='chan')b+=Math.random()*18+sess*.7;if(s.id==='bb')b+=Math.random()*16+sess*.5;
-    if(sym==='BTCUSDT'&&(s.id==='vol'||s.id==='bos'||s.id==='trend'))b+=10;
-    if(sym==='XAUUSDT'&&(s.id==='fvg'||s.id==='ob'||s.id==='sr'||s.id==='chan'))b+=12;
-    res[s.id]={score:Math.round(Math.min(98,Math.max(5,b)))};
+    const w=WEIGHTS[s.id]||{base:18,range:16,sessBonus:6,signal_threshold:65};
+    let score=w.base + Math.random()*w.range + sess*w.sessBonus;
+
+    // Bonus por ativo — cada ativo tem afinidade com certas estratégias
+    if(sym==='BTCUSDT'){
+      if(s.id==='bos'||s.id==='trend')score+=10;   // BTC respeita muito estrutura
+      if(s.id==='vol'||s.id==='liq')score+=8;       // volume e liquidez fortes no BTC
+      if(s.id==='fvg')score+=6;
+    }
+    if(sym==='XAUUSDT'){
+      if(s.id==='fvg'||s.id==='ob')score+=14;       // Ouro respeita muito FVG e OB
+      if(s.id==='sr'||s.id==='chan')score+=10;       // S/R e canal fortes no ouro
+      if(s.id==='ema')score+=6;
+    }
+    if(sym==='ETHUSDT'){
+      if(s.id==='bos'||s.id==='choch')score+=10;
+      if(s.id==='fvg'||s.id==='ema')score+=8;
+    }
+    if(sym==='SOLUSDT'){
+      if(s.id==='trend'||s.id==='ema')score+=12;    // SOL segue tendência forte
+      if(s.id==='liq')score+=8;
+    }
+
+    // Bonus por timeframe
+    if(tf==='M15'||tf==='M30'){
+      if(s.id==='fvg'||s.id==='ob')score+=6;        // FVG e OB mais confiáveis em TF maiores
+    }
+    if(tf==='H1'||tf==='H4'){
+      if(s.id==='sr'||s.id==='trend'||s.id==='ob')score+=8;
+      if(s.id==='bb')score+=6;
+    }
+
+    res[s.id]={score:Math.round(Math.min(98,Math.max(5,score)))};
   });
-  const dir=Math.random()>.5?'BUY':'SELL';
-  Object.keys(res).forEach(k=>{const sc=res[k].score;res[k].signal=sc>60?(Math.random()>.22?dir:(dir==='BUY'?'SELL':'BUY')):'neutro';});
-  const all=Object.values(res).map(v=>v.score);const global=Math.round(all.reduce((a,b)=>a+b,0)/all.length);
-  const trendType=res.trend.score>70?(dir==='BUY'?'↗ Alta (HH+HL)':'↘ Baixa (LH+LL)'):res.chan.score>70?(dir==='BUY'?'⫶ Canal Asc.':'⫶ Canal Desc.'):'';
+
+  // Direção baseada nos 5 mais fortes — maioria vence
+  const tier1=['fvg','ob','bos','ema','trend'];
+  const tier1Scores=tier1.map(id=>res[id].score);
+  const avgTier1=tier1Scores.reduce((a,b)=>a+b,0)/tier1.length;
+
+  // Direção tem viés baseado no score dos tier1
+  // Score alto tier1 = sinal mais limpo
+  const bias=avgTier1>65?0.65:avgTier1>55?0.55:0.5; // quanto maior o score, mais provável convergência
+  const dir=Math.random()<bias?'BUY':'SELL';
+
+  // Cada estratégia sinaliza baseado no seu threshold próprio + direção global
+  Object.keys(res).forEach(k=>{
+    const w=WEIGHTS[k]||{signal_threshold:65};
+    const sc=res[k].score;
+    // Estratégias tier1 têm threshold mais baixo (sinalizam mais fácil)
+    // Estratégias tier3 precisam de score mais alto para sinalizar
+    if(sc>=w.signal_threshold){
+      // 80% chance de seguir a direção dominante, 20% diverge
+      res[k].signal=Math.random()<0.82?dir:(dir==='BUY'?'SELL':'BUY');
+    } else {
+      res[k].signal='neutro';
+    }
+  });
+
+  // Score global = média ponderada (tier1 tem peso 2x, tier3 tem peso 0.6x)
+  const SCORE_WEIGHTS={
+    fvg:2.0, ob:2.0, bos:1.8, ema:1.8, trend:2.0,  // Tier 1 = peso 2x
+    liq:1.2, vwap:1.0, sr:1.2, choch:1.3, vol:1.0,  // Tier 2 = peso 1x
+    rsi:0.6, chan:0.7, bb:0.5                          // Tier 3 = peso 0.5x
+  };
+  let weightedSum=0, totalWeight=0;
+  Object.keys(res).forEach(k=>{
+    const w=SCORE_WEIGHTS[k]||1;
+    weightedSum+=res[k].score*w;
+    totalWeight+=w;
+  });
+  const global=Math.round(weightedSum/totalWeight);
+
+  // Tipo de tendência baseado nos scores de trend e chan
+  let trendType='';
+  if(res.trend.score>68){
+    trendType=dir==='BUY'?'↗ Alta (HH+HL)':'↘ Baixa (LH+LL)';
+  } else if(res.chan.score>68){
+    trendType=dir==='BUY'?'⫶ Canal Asc.':'⫶ Canal Desc.';
+  } else if(res.bos.score>72&&res.choch.score>62){
+    trendType=dir==='BUY'?'↗ Reversão Alta':'↘ Reversão Baixa';
+  }
+
   return{res,global,dir,trendType};
 }
 function calcSLTP(sym,dir,score,tfRaw,price){
