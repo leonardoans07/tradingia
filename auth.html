@@ -419,6 +419,7 @@ async function loadTransactions() {
 function showDash() {
   document.getElementById('auth-card').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
+  window.scrollTo(0,0);
   updateDash();
   loadTransactions();
 }
