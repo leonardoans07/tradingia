@@ -14,7 +14,7 @@
   --r:#ff4d6a;--rb:rgba(255,77,106,.08);--rbd:rgba(255,77,106,.25);
   --a:#ffb547;--ab:rgba(255,181,71,.08);--abd:rgba(255,181,71,.3);
   --c:#00d4ff;--cb:rgba(0,212,255,.08);--cbd:rgba(0,212,255,.25);
-  --bl:#4d9fff;--pu:#a78bfa;--gold:#ffd700;--goldb:rgba(255,215,0,.12);--goldbd:rgba(255,215,0,.3);
+  --bl:#4d9fff;--pu:#a78bfa;--gold:#ffd700;--goldb:rgba(255,215,0,.1);--goldbd:rgba(255,215,0,.28);
   --rad:10px;--radl:14px;
   --font:'Syne',sans-serif;--mono:'DM Mono',monospace;
 }
@@ -42,12 +42,12 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 
 /* ====== PAINEL DE VOZ ====== */
 .voice-panel{
-  background:linear-gradient(135deg,rgba(255,215,0,.05),rgba(0,232,150,.03));
-  border:1px solid var(--goldbd);border-radius:var(--radl);
+  background:linear-gradient(135deg,rgba(0,212,255,.05),rgba(0,232,150,.03));
+  border:1px solid var(--cbd);border-radius:var(--radl);
   padding:12px 16px;margin-bottom:14px;
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;
 }
-.vp-title{font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono);flex-shrink:0}
+.vp-title{font-size:10px;font-weight:600;color:var(--c);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono);flex-shrink:0}
 .vp-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1}
 /* Botão voz principal */
 .btn-voice{
@@ -171,7 +171,7 @@ input.vslider::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11
 /* ====== METRICS ====== */
 .mets{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
 .mc{background:var(--bg2);border:1px solid var(--b);border-radius:var(--rad);padding:10px 12px}
-.mc.hl{border-color:var(--goldbd);background:linear-gradient(135deg,var(--goldb),var(--bg2))}
+.mc.hl{border-color:var(--gbd);background:linear-gradient(135deg,var(--gb),var(--bg2))}
 .mc-lbl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;font-family:var(--mono)}
 .mc-val{font-size:20px;font-weight:700;line-height:1}
 .mc-val.g{color:var(--g)}.mc-val.a{color:var(--a)}.mc-val.r{color:var(--r)}
@@ -313,6 +313,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 
 @media(max-width:1000px){.layout{grid-template-columns:1fr}.mets{grid-template-columns:repeat(3,1fr)}.tm-grid{grid-template-columns:repeat(3,1fr)}.strat-mini{grid-template-columns:repeat(7,1fr)}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -416,12 +417,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   <div class="brand">
     <div class="brand-ico">⚡</div>
     <div>
-      <div class="brand-name">IA Xauron <span style="color:var(--gold);font-size:10px">v1</span></div>
+      <div class="brand-name">IA Xauron <span style="color:#ffd700;font-size:10px">v1</span></div>
       <div class="brand-sub">Análise com IA · Narrador por Voz · Modo Focus · Binance API</div>
     </div>
   </div>
   <div class="hdr-r">
     <span class="api-b" id="api-b">⬤ Conectando...</span>
+    <span style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:8px;border:1px solid var(--goldbd);background:var(--goldb);color:var(--gold)" id="credits-display">carregando...</span>
     <button class="icobtn" id="snd-btn">🔔</button>
     <div class="live-pill"><div class="dot"></div><span id="live-lbl">Iniciando...</span></div>
     <div class="clk" id="clk">--:--:--</div>
@@ -1027,7 +1029,62 @@ function updateFocusStrats(res,thr){
 // ================================================================
 // INIT
 // ================================================================
+
+// ================================================================
+// SUPABASE — Sistema de Créditos IA Xauron
+// ================================================================
+const _SB_URL = 'https://dlgzpgqnadlqvmaymzep.supabase.co';
+const _SB_KEY = 'sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
+let _sb = null;
+let _currentUser = null;
+let _userCredits = 0;
+
+async function initSupabase(){
+  try{
+    const { createClient } = supabase;
+    _sb = createClient(_SB_URL, _SB_KEY);
+    const { data:{ session } } = await _sb.auth.getSession();
+    if(session?.user){
+      _currentUser = session.user;
+      await loadCredits();
+      updateCreditsUI();
+    }
+  }catch(e){ console.log('Supabase não carregado, modo livre ativo'); }
+}
+
+async function loadCredits(){
+  if(!_sb||!_currentUser) return;
+  try{
+    const { data } = await _sb.from('profiles').select('credits,plan').eq('id',_currentUser.id).single();
+    if(data){ _userCredits=data.credits||0; }
+  }catch(e){}
+}
+
+async function consumeCredit(){
+  if(!_sb||!_currentUser) return true; // sem login = modo livre
+  if(_userCredits<=0){
+    showToast('tr2','❌','Sem créditos!','Compre mais em iaxauron.com.br/auth.html');
+    speak('Você não tem créditos suficientes. Acesse o painel para comprar mais.',true);
+    return false;
+  }
+  try{
+    await _sb.from('profiles').update({ credits: _userCredits-1 }).eq('id',_currentUser.id);
+    _userCredits--;
+    updateCreditsUI();
+    return true;
+  }catch(e){ return true; }
+}
+
+function updateCreditsUI(){
+  const el=document.getElementById('credits-display');
+  if(!el)return;
+  if(!_currentUser){ el.textContent='Modo livre'; el.style.color='var(--t2)'; return; }
+  el.textContent=_userCredits+' créditos';
+  el.style.color=_userCredits>20?'var(--gold)':_userCredits>5?'var(--a)':'var(--r)';
+}
+
 function init(){
+  initSupabase();
   buildStratMini();
   buildFocusStrats();
   initCanvas();
@@ -1254,6 +1311,8 @@ function calcSLTP(sym,dir,score,tfRaw,price){
 // RUN ANALYSIS
 // ================================================================
 async function runAnalysis(){
+  const ok=await consumeCredit();
+  if(!ok)return;
   const sym=document.getElementById('sel-sym').value;const tf=document.getElementById('sel-tf').value;const tfK=TF_KEY[tf]||'M5';const thr=parseInt(document.getElementById('thr').value);
   if(!LIVE[sym]?.ready||LIVE[sym].price===0)await fetchAllPrices();
   const price=LIVE[sym]?.price||0;
