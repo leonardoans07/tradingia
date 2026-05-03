@@ -223,6 +223,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 .sm-sig{font-family:var(--mono);font-size:7px;padding:1px 4px;border-radius:4px;margin-top:1px;display:inline-block}
 .sm-b{background:var(--gb);color:var(--g)}.sm-s{background:var(--rb);color:var(--r)}.sm-n{color:var(--t3)}
 
+
+/* SINAIS CLICÁVEIS */
+.ac{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.ac:hover{box-shadow:0 0 0 1px rgba(255,215,0,.2)}
+.ac.active-overlay{border-color:var(--gold)!important;box-shadow:0 0 0 2px rgba(255,215,0,.2)!important}
+.ac-click-hint{font-family:var(--mono);font-size:8px;color:var(--t3);padding:4px 11px;display:flex;align-items:center;gap:4px;border-top:1px solid var(--b)}
+.ac-click-hint.active{color:var(--gold)}
+
 /* ====== ALERTS ====== */
 .alerts-panel{background:var(--bg2);border:1px solid var(--b);border-radius:var(--radl);overflow:hidden;display:flex;flex-direction:column}
 .ph{padding:10px 14px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
@@ -1373,6 +1381,64 @@ function addAlert(sym,tf,score,dir,fired,sltp,price,trendType){
   document.getElementById('m-al').textContent=alerts.length;document.getElementById('alert-b').textContent=alerts.length;
 }
 function setAlertResult(id,result,exitPrice){const a=alerts.find(x=>x.id===id);if(a){a.result=result;a.exitPrice=exitPrice;renderAlerts();}}
+
+// ================================================================
+// CARREGAR ALERTA NO GRÁFICO AO CLICAR
+// ================================================================
+let activeAlertId = null;
+
+function loadAlertOnChart(id){
+  const a = alerts.find(x=>x.id===id);
+  if(!a || a.result!=='open') return;
+  const s = a.sltp;
+
+  // Remove destaque anterior
+  document.querySelectorAll('.ac.active-overlay').forEach(el=>{
+    el.classList.remove('active-overlay');
+    const h=document.getElementById('hint-'+el.id);
+    if(h){h.textContent='👆 Clique para ver no gráfico';h.className='ac-click-hint';}
+  });
+
+  // Destaca o sinal clicado
+  const card=document.getElementById(id);
+  if(card){
+    card.classList.add('active-overlay');
+    const h=document.getElementById('hint-'+id);
+    if(h){h.textContent='✅ Níveis carregados no gráfico';h.className='ac-click-hint active';}
+  }
+
+  // Carrega overlay no gráfico
+  overlay={
+    entry:s.entry, sl:s.sl, tp:s.tp,
+    be:s.beLevel, trail:s.trailLevel,
+    isBuy:s.isBuy, dec:s.dec
+  };
+  activeAlertId=id;
+
+  // Atualiza símbolo se diferente
+  const symSel=document.getElementById('sel-sym');
+  if(symSel.value!==a.sym){
+    symSel.value=a.sym;
+    onParChange();
+  }
+
+  drawChart();
+  if(focusMode) updateFocusPanel();
+
+  // Scroll para o topo para ver o gráfico
+  document.querySelector('.chart-panel').scrollIntoView({behavior:'smooth',block:'start'});
+
+  // Toast
+  showToast('ts','📊',`Níveis de ${a.sym} carregados`,
+    `ENT ${fp(s.entry,s.dec)} · SL ${fp(s.sl,s.dec)} · TP ${fp(s.tp,s.dec)}`);
+
+  // Narra se narrador ativo
+  if(narratorOn){
+    const dir=a.dir==='BUY'?'compra':'venda';
+    speak(`Sinal de ${dir} carregado. Entrada em ${fpVoice(s.entry,s.dec)}. Stop em ${fpVoice(s.sl,s.dec)}. Alvo em ${fpVoice(s.tp,s.dec)}.`,true);
+  }
+}
+
 function renderAlerts(){
   const el=document.getElementById('alerts-scr');const thr=parseInt(document.getElementById('thr').value);
   if(!alerts.length){el.innerHTML='<div class="no-al">◈<br>Nenhum alerta ainda<br>Execute a análise</div>';return;}
@@ -1387,7 +1453,7 @@ function renderAlerts(){
       <div class="ac-hdr"><span class="ac-sc ${scCls}">${a.score}</span><div class="ac-meta"><span class="ac-sym">${a.sym}</span><span class="ac-tf2">${a.tf}</span><br><span class="ac-dir ${a.dir==='BUY'?'db':'ds'}">${a.dir}</span>${a.trendType?`<span style="font-family:var(--mono);font-size:8px;color:var(--c);margin-left:5px">${a.trendType}</span>`:''}<div class="ac-str">${a.fired} estrat. · ATR ${s.atrPct}%</div></div><div class="ac-time">${a.time}</div></div>
       <div class="sltp"><div class="sc2"><div class="sc-lbl">Entrada</div><div class="sc-val ep">${fp(s.entry,d)}</div><div class="sc-sub">preço real</div></div><div class="sc2"><div class="sc-lbl">Stop Loss</div><div class="sc-val sl">${fp(s.sl,d)}</div><div class="sc-sub">${s.slPct} · ${s.slAmt}</div></div><div class="sc2"><div class="sc-lbl">Take Profit</div><div class="sc-val tp">${fp(s.tp,d)}</div><div class="sc-sub">${s.tpPct} · ${s.tpAmt}</div></div></div>
       <div class="sltp" style="background:rgba(0,0,0,.15)"><div class="sc2"><div class="sc-lbl" style="color:var(--c)">🛡 Breakeven</div><div class="sc-val be">${fp(s.beLevel,d)}</div><div class="sc-sub">SL→${fp(s.entry,d)}</div></div><div class="sc2"><div class="sc-lbl" style="color:var(--a)">⚡ Trailing</div><div class="sc-val tr">${fp(s.trailLevel,d)}</div><div class="sc-sub">trail ${fp(s.trailStop,d)}</div></div><div class="sc2"><div class="sc-lbl">RR</div><div class="sc-val rr">1:${s.rr.toFixed(1)}</div><div class="sc-sub">score ${a.score}pts</div></div></div>
-      ${resBar}</div>`;
+      ${resBar}${clickHint}</div>`;
   }).join('');
 }
 
