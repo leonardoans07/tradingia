@@ -1391,13 +1391,24 @@ async function fetchSinglePrice(sym){
 async function loadCandles(){
   const sym=document.getElementById('sel-sym').value;
   const tf=document.getElementById('sel-tf').value;
-  try{
-    const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${tf}&limit=80`);
-    if(!r.ok)throw new Error();
-    const raw=await r.json();
-    candles=raw.map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
-    calcEMAs();drawChart();
-  }catch(e){genFakeCandles();}
+  // EURUSDT e GBPUSDT existem na Binance mas às vezes precisam de retry
+  let attempts=0;
+  while(attempts<3){
+    try{
+      const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${tf}&limit=80`);
+      if(!r.ok) throw new Error('status '+r.status);
+      const raw=await r.json();
+      if(!Array.isArray(raw)||raw.length===0) throw new Error('empty');
+      candles=raw.map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
+      calcEMAs();drawChart();
+      return;
+    }catch(e){
+      attempts++;
+      if(attempts<3) await new Promise(r=>setTimeout(r,800));
+    }
+  }
+  // Fallback: gera candles baseados no preço atual
+  genFakeCandles();
 }
 async function updateLiveCandle(){
   const sym=document.getElementById('sel-sym').value;
@@ -1684,6 +1695,22 @@ async function runAnalysis(){
   document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup forte!':global>=55?'Moderado':'Fraco';
   document.getElementById('f-fired').textContent=fired+' estratégias';
   if(global>=thr){
+    // Se há trade ativo no mesmo ativo com direção OPOSTA, fecha ele primeiro
+    if(trade && trade.sym===sym && trade.dir!==dir){
+      clearInterval(tradeTimer);
+      const exitPrice=price;
+      const s=trade.sltp;
+      const isBuy=s.isBuy;
+      const pnl=isBuy?(exitPrice-s.entry):(s.entry-exitPrice);
+      const result=pnl>0?'tp':pnl<=-Math.abs(s.sl-s.entry)*0.5?'sl':'be';
+      showToast('tb','🔄',`Trade ${trade.dir} fechado — novo sinal ${dir}`,`Saída: ${fp(exitPrice,s.dec)}`);
+      if(narratorOn) speak(`Trade anterior fechado. Novo sinal de ${dir==='BUY'?'compra':'venda'} identificado.`,true);
+      setAlertResult(trade.alertId, result, exitPrice);
+      recordTrade(trade, result, exitPrice);
+      trade=null; overlay=null;
+      document.getElementById('tm').className='tm';
+      closeBan('be');closeBan('tr');
+    }
     // COBRA CREDITO APENAS quando há sinal confirmado
     const ok=await consumeCredit();
     if(!ok)return;
@@ -1800,14 +1827,21 @@ function renderAlerts(){
 // ================================================================
 function startTrade(sym,dir,sltp,tf){
   if(trade)return;const alertId=alerts[0]?.id;
-  trade={sym,dir,sltp,tf,cur:sltp.entry,beDone:false,trDone:false,alertId};
+  trade={sym,dir,sltp,tf,cur:sltp.entry,beDone:false,trDone:false,alertId,openTime:Date.now()};
   const g=id=>document.getElementById(id);
   g('tm').className='tm vis';g('tm-sym').textContent=sym+' '+dir;g('tm-en').textContent=fp(sltp.entry,sltp.dec);g('tm-sl').textContent=fp(sltp.sl,sltp.dec);g('tm-tp').textContent=fp(sltp.tp,sltp.dec);g('be-lbl').textContent='BE '+fp(sltp.beLevel,sltp.dec);g('tr-lbl').textContent='Trail '+fp(sltp.trailLevel,sltp.dec);
   if(tradeTimer)clearInterval(tradeTimer);
   tradeTimer=setInterval(async()=>{
     const p=await fetchSinglePrice(sym);
-    if(p!==null){trade.cur=p;LIVE[sym].price=p;updateHeaderPrice();updateTradeMonitor();drawChart();if(focusMode){updateFocusPanel();drawFocusChart();}}
-  },4000);
+    if(p!==null){
+      trade.cur=p;
+      LIVE[sym].price=p;
+      updateHeaderPrice();
+      updateTradeMonitor();
+      drawChart();
+      if(focusMode){updateFocusPanel();drawFocusChart();}
+    }
+  },3000); // verifica a cada 3s para não perder SL/TP
   updateTradeMonitor();
 }
 function updateTradeMonitor(){
