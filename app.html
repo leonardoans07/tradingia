@@ -1122,7 +1122,9 @@ function init(){
   updateClock();
   updateTFChip();
   fetchAllPrices();
+  fetchGoldPrice();
   setInterval(fetchAllPrices,3000);
+  setInterval(fetchGoldPrice,5000); // ouro atualiza a cada 5s
   loadCandles();
   setInterval(updateLiveCandle,5000);
   document.getElementById('thr').addEventListener('input',function(){
@@ -1151,6 +1153,42 @@ function updateTFChip(){
 // ================================================================
 // BINANCE API
 // ================================================================
+// ================================================================
+// OURO — preço real via Edge Function Supabase (sem CORS)
+// ================================================================
+const GOLD_EDGE = 'https://dlgzpgqnadlqvmaymzep.supabase.co/functions/v1/smooth-processor';
+const GOLD_HEADERS = { 'Authorization': 'Bearer sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9' };
+
+async function fetchGoldPrice(){
+  try{
+    const r = await fetch(GOLD_EDGE, { headers: GOLD_HEADERS });
+    if(!r.ok) throw new Error('status '+r.status);
+    const d = await r.json();
+    const price = parseFloat(d?.price || d?.ask || 0);
+    if(price > 1000){
+      const old = LIVE['XAUUSDT']?.price || price;
+      LIVE['XAUUSDT'].price = +price.toFixed(2);
+      LIVE['XAUUSDT'].chg   = old > 0 ? +((price-old)/old*100).toFixed(3) : 0;
+      LIVE['XAUUSDT'].ready = true;
+      return true;
+    }
+  }catch(e){
+    console.log('Gold edge error:', e.message);
+  }
+  // Fallback — PAXGUSDT da Binance
+  try{
+    const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
+    const d = await r.json();
+    const price = parseFloat(d.price);
+    if(price > 1000){
+      LIVE['XAUUSDT'].price = +price.toFixed(2);
+      LIVE['XAUUSDT'].ready = true;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
 async function fetchAllPrices(){
   try{
     const syms=Object.keys(PAIRS);
