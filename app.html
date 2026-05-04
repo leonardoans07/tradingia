@@ -713,8 +713,7 @@ Object.keys(PAIRS).forEach(k=>LIVE[k]={price:0,chg:0,ready:false});
 let autoMode=false,autoTimer=null,runCount=0,soundOn=true;
 let alerts=[],tradeHistory=[],wins=0,losses=0,bes=0,totalPnl=0;
 let trade=null,tradeTimer=null;
-// MÚLTIPLOS TRADES — mapa por alertId
-const activeTrades={}; // {alertId: {sym,dir,sltp,tf,cur,beDone,trDone,trailStopActive,timer,openTime}}
+const activeTrades={};
 let candles=[],ema9=[],ema21=[];
 let overlay=null;
 let chartCtx=null,chartCanvas=null;
@@ -1810,65 +1809,9 @@ function setAlertResult(id,result,exitPrice){
 let activeAlertId = null;
 
 function loadAlertOnChart(id){
-  const a=alerts.find(x=>x.id===id);
-  if(!a) return;
-  const s=a.sltp;
-
-  // Sempre carrega no gráfico
-  overlay={entry:s.entry,sl:s.sl,tp:s.tp,be:s.beLevel,trail:s.trailLevel||null,isBuy:s.isBuy,dec:s.dec};
-  const symSel=document.getElementById('sel-sym');
-  if(symSel.value!==a.sym){symSel.value=a.sym;onParChange();}
-  drawChart();
-
-  // Se alerta fechado só mostra no gráfico
-  if(a.result!=='open'){
-    showToast('tb','📊',a.sym+' '+a.result.toUpperCase(),'Operação finalizada');
-    document.querySelectorAll('.ac.active-overlay').forEach(el=>el.classList.remove('active-overlay'));
-    document.getElementById(a.id)?.classList.add('active-overlay');
-    return;
-  }
-
-  // Abre monitor de trade
-  const g=id=>document.getElementById(id);
-  g('tm').className='tm vis';
-  g('tm-sym').textContent=a.sym+' '+a.dir;
-  g('tm-en').textContent=fp(s.entry,s.dec);
-  g('tm-sl').textContent=fp(s.sl,s.dec);
-  g('tm-tp').textContent=fp(s.tp,s.dec);
-  g('be-lbl').textContent='BE '+fp(s.beLevel,s.dec);
-  g('tr-lbl').textContent='Trail '+fp(s.trailLevel,s.dec);
-  const cur=LIVE[a.sym]?.price||s.entry;
-  const pnl=s.isBuy?(cur-s.entry):(s.entry-cur);
-  const pe=g('tm-pnl');
-  pe.textContent=(pnl>=0?'+':'')+fa(Math.abs(pnl),s.dec);
-  pe.className='tm-v '+(pnl>0?'g':pnl<0?'r':'');
-  document.querySelectorAll('.ac.active-overlay').forEach(el=>el.classList.remove('active-overlay'));
-  document.getElementById(a.id)?.classList.add('active-overlay');
-  document.querySelector('.chart-panel')?.scrollIntoView({behavior:'smooth',block:'start'});
-  showToast('ts','📊',a.sym+' '+a.dir,'Monitor de trade aberto');
-
-  if(!a){return;}// placeholder
-  const dummy=a; // remove warning
-
-  // Garante que o trade está sendo monitorado
-  if(!trade||trade.alertId!==id){
-    // Reconecta monitoramento se perdeu
-    if(trade&&trade.alertId!==id) return; // outro trade ativo
-    // Inicia monitoramento para este alerta
-    if(!trade){
-      trade={sym:a.sym,dir:a.dir,sltp:s,tf:a.tf||'5m',cur:cur,
-             beDone:cur>=(s.isBuy?s.beLevel:s.entry),
-             trDone:false,alertId:id,openTime:Date.now()};
-      if(tradeTimer) clearInterval(tradeTimer);
-      tradeTimer=setInterval(async()=>{
-        if(!trade)return;
-        const p=await fetchSinglePrice(trade.sym);
-        if(p!==null){trade.cur=p;LIVE[trade.sym].price=p;updateHeaderPrice();updateTradeMonitor();drawChart();}
-      },2500);
-    }
-  }
-
-  const s2=s; // dummy
+  const a = alerts.find(x=>x.id===id);
+  if(!a || a.result!=='open') return;
+  const s = a.sltp;
 
   // Remove destaque anterior
   document.querySelectorAll('.ac.active-overlay').forEach(el=>{
@@ -1942,203 +1885,141 @@ function renderAlerts(){
 // TRADE MONITOR
 // ================================================================
 function startTrade(sym,dir,sltp,tf){
-  // Pega o alertId do alerta mais recente deste par+dir
   const alertObj=alerts.find(a=>a.sym===sym&&a.dir===dir&&a.result==='open');
   const alertId=alertObj?.id||('t_'+Date.now());
-
-  // Não abre duplicado para o mesmo alerta
   if(activeTrades[alertId]) return;
-
-  // Se tem trade principal do mesmo par com direção oposta, fecha-o
-  if(trade && trade.sym===sym && trade.dir!==dir){
+  // Fecha trade oposto no mesmo par
+  if(trade&&trade.sym===sym&&trade.dir!==dir){
     clearInterval(tradeTimer);
     setAlertResult(trade.alertId,'closed',sltp.entry);
     recordTrade(trade,'closed',sltp.entry);
     delete activeTrades[trade.alertId];
     trade=null;overlay=null;
   }
-
-  // Cria o objeto de trade
-  const t={sym,dir,sltp,tf,cur:sltp.entry,beDone:false,trDone:false,
-            trailStopActive:null,alertId,openTime:Date.now()};
-
-  // Registra no mapa de trades ativos
+  const t={sym,dir,sltp,tf,cur:sltp.entry,beDone:false,trDone:false,trailStopActive:null,alertId,openTime:Date.now()};
   activeTrades[alertId]=t;
-
-  // Se não tem trade principal, este vira o principal (aparece no monitor)
   if(!trade){
     trade=t;
     const g=id=>document.getElementById(id);
-    g('tm').className='tm vis';
-    g('tm-sym').textContent=sym+' '+dir;
-    g('tm-en').textContent=fp(sltp.entry,sltp.dec);
-    g('tm-sl').textContent=fp(sltp.sl,sltp.dec);
-    g('tm-tp').textContent=fp(sltp.tp,sltp.dec);
-    g('be-lbl').textContent='BE '+fp(sltp.beLevel,sltp.dec);
+    g('tm').className='tm vis';g('tm-sym').textContent=sym+' '+dir;
+    g('tm-en').textContent=fp(sltp.entry,sltp.dec);g('tm-sl').textContent=fp(sltp.sl,sltp.dec);
+    g('tm-tp').textContent=fp(sltp.tp,sltp.dec);g('be-lbl').textContent='BE '+fp(sltp.beLevel,sltp.dec);
     g('tr-lbl').textContent='Trail '+fp(sltp.trailLevel,sltp.dec);
     if(tradeTimer) clearInterval(tradeTimer);
     tradeTimer=setInterval(()=>monitorAllTrades(),2500);
     updateTradeMonitor();
-  } else {
-    // Trade secundário — já vai ser monitorado pelo timer geral
-    console.log('Trade secundário registrado:',alertId,sym,dir);
   }
 }
 
-// Monitora TODOS os trades ativos simultaneamente
-async function monitorAllTrades(){
+function monitorAllTrades(){
   const ids=Object.keys(activeTrades);
   if(!ids.length){clearInterval(tradeTimer);tradeTimer=null;return;}
-
-  // Busca preços de todos os símbolos ativos
+  // Busca preços em paralelo
   const syms=[...new Set(ids.map(id=>activeTrades[id].sym))];
-  await Promise.allSettled(syms.map(async sym=>{
-    const p=await fetchSinglePrice(sym);
-    if(p&&p>0){
-      // Atualiza todos os trades deste símbolo
-      ids.forEach(id=>{
-        const t=activeTrades[id];
-        if(t&&t.sym===sym) t.cur=p;
-      });
-      if(LIVE[sym]) LIVE[sym].price=p;
-    }
-  }));
-
-  updateHeaderPrice();
-
-  // Verifica SL/TP de cada trade
-  ids.forEach(id=>{
-    const t=activeTrades[id];
-    if(!t) return;
-    checkTradeResult(t,id);
+  Promise.allSettled(syms.map(sym=>
+    fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`)
+      .then(r=>r.json()).then(d=>{
+        const p=parseFloat(d.price);
+        if(p>0){
+          ids.forEach(id=>{if(activeTrades[id]?.sym===sym) activeTrades[id].cur=p;});
+          if(LIVE[sym]) LIVE[sym].price=p;
+        }
+      })
+  )).then(()=>{
+    updateHeaderPrice();
+    ids.forEach(id=>{if(activeTrades[id]) checkTrade(activeTrades[id],id);});
+    if(trade&&activeTrades[trade.alertId]) updateTradeMonitor();
+    drawChart();
   });
-
-  // Atualiza monitor do trade principal
-  if(trade && activeTrades[trade.alertId]) updateTradeMonitor();
-  drawChart();
-  if(focusMode){updateFocusPanel();drawFocusChart();}
 }
 
-// Verifica resultado de um trade específico
-function checkTradeResult(t, alertId){
+function checkTrade(t,alertId){
   const s=t.sltp,isBuy=s.isBuy,cur=t.cur,dec=s.dec;
-  if(!cur||cur<=0) return;
-
-  // Trail stop ativo — fecha como WIN se voltar ao nível
-  if(t.trDone && t.trailStopActive){
-    const hitTrail=isBuy?cur<=t.trailStopActive:cur>=t.trailStopActive;
-    if(hitTrail){
-      finalizeTradeResult(t,alertId,'tp',cur,'✅ WIN (Trail Stop)',`${t.sym} saiu com lucro no trail!`,'#00e896');
-      return;
-    }
+  if(!cur||cur<=0)return;
+  // Trail stop ativo
+  if(t.trDone&&t.trailStopActive){
+    const hit=isBuy?cur<=t.trailStopActive:cur>=t.trailStopActive;
+    if(hit){finalizeTrade(t,alertId,'tp',cur,'✅ WIN — Trail Stop');return;}
   }
-
-  // Take Profit
+  // TP
   const range=isBuy?s.tp-s.entry:s.entry-s.tp;
   const done=isBuy?cur-s.entry:s.entry-cur;
-  const pct=range>0?Math.max(0,Math.min(100,Math.round(done/range*100))):0;
-  if(pct>=100){
-    finalizeTradeResult(t,alertId,'tp',s.tp,'✅ Take Profit!',`${t.sym} TP: ${fp(s.tp,dec)}`,'#00e896');
-    return;
-  }
-
-  // Stop Loss
+  if(range>0&&done>=range){finalizeTrade(t,alertId,'tp',s.tp,'✅ Take Profit!');return;}
+  // SL
   const hitSL=isBuy?cur<=s.sl:cur>=s.sl;
-  if(hitSL){
-    finalizeTradeResult(t,alertId,'sl',s.sl,'❌ Stop Loss',`${t.sym} SL: ${fp(s.sl,dec)}`,'#ff4d6a');
-    return;
-  }
-
-  // Breakeven — se voltou à entrada após atingir BE
+  if(hitSL){finalizeTrade(t,alertId,'sl',s.sl,'❌ Stop Loss');return;}
+  // BE — se voltou à entrada
   if(t.beDone){
     const hitBE=isBuy?cur<=s.entry:cur>=s.entry;
-    if(hitBE){
-      finalizeTradeResult(t,alertId,'be',s.entry,'🛡 Breakeven',`${t.sym} zerou na entrada`,'#ffb547');
-      return;
-    }
+    if(hitBE){finalizeTrade(t,alertId,'be',s.entry,'🛡 Breakeven');return;}
   }
-
-  // Ativa Breakeven
+  // Ativa BE
   const atBE=isBuy?cur>=s.beLevel:cur<=s.beLevel;
   if(atBE&&!t.beDone){
     t.beDone=true;
-    if(t===trade){ // só narra/mostra se for o trade principal
-      const g=id=>document.getElementById(id);
-      g('be-ttl').textContent='🛡 PROTEJA — Mova SL!';
-      g('be-sub').textContent=`${t.sym} atingiu BE (${fp(s.beLevel,dec)}). Mova SL → ${fp(s.entry,dec)} agora!`;
-      g('be-ban').className='pbanner beb vis';
-      g('tm-st').textContent='Breakeven';g('tm-st').className='tm-st be';
-      if(soundOn) playBeep(75,'be');
-      showToast('tb','🛡','PROTEJA — Mova SL!',`SL → ${fp(s.entry,dec)}`);
-      narrateBreakeven(t.sym,s.entry,s.beLevel,dec);
-    } else {
-      // Trade secundário — só toast
-      showToast('tb','🛡',`BE: ${t.sym} ${t.dir}`,`Mova SL → ${fp(s.entry,dec)}`);
-    }
-  }
-
-  // Ativa Trailing
-  const atTR=isBuy?cur>=s.trailLevel:cur<=s.trailLevel;
-  if(atTR&&!t.trDone){
-    t.trDone=true;
-    t.trailStopActive=s.trailStop;
     if(t===trade){
       const g=id=>document.getElementById(id);
-      g('tr-ttl').textContent='⚡ TRAILING STOP ATIVO!';
-      g('tr-sub').textContent=`${t.sym} em lucro! Trail stop: ${fp(s.trailStop,dec)}`;
+      g('be-ttl').textContent='🛡 PROTEJA — Mova SL!';
+      g('be-sub').textContent=t.sym+' BE: mova SL → '+fp(s.entry,dec);
+      g('be-ban').className='pbanner beb vis';
+      g('tm-st').textContent='Breakeven';g('tm-st').className='tm-st be';
+      if(soundOn)playBeep(75,'be');
+      showToast('tb','🛡','PROTEJA — Mova SL!','SL → '+fp(s.entry,dec));
+      narrateBreakeven(t.sym,s.entry,s.beLevel,dec);
+    } else {
+      showToast('tb','🛡','BE: '+t.sym+' '+t.dir,'Mova SL → '+fp(s.entry,dec));
+    }
+  }
+  // Ativa Trail
+  const atTR=isBuy?cur>=s.trailLevel:cur<=s.trailLevel;
+  if(atTR&&!t.trDone){
+    t.trDone=true;t.trailStopActive=s.trailStop;
+    if(t===trade){
+      const g=id=>document.getElementById(id);
+      g('tr-ttl').textContent='⚡ TRAILING ATIVO!';
+      g('tr-sub').textContent=t.sym+' em lucro! Stop: '+fp(s.trailStop,dec);
       g('tr-ban').className='pbanner trb vis';
       g('tm-st').textContent='✅ Em Lucro';g('tm-st').className='tm-st tr';
       if(overlay){overlay.trail=s.trailStop;drawChart();}
-      if(soundOn) playBeep(90,'trail');
-      showToast('tt','⚡','TRAILING ATIVO — Lucro Protegido!',`Stop: ${fp(s.trailStop,dec)}`);
+      if(soundOn)playBeep(90,'trail');
+      showToast('tt','⚡','TRAILING ATIVO!','Stop: '+fp(s.trailStop,dec));
       narrateTrail(t.sym,s.trailLevel,s.trailStop,dec);
     } else {
-      showToast('tt','⚡',`Trail: ${t.sym} ${t.dir}`,`Stop: ${fp(s.trailStop,dec)}`);
+      showToast('tt','⚡','Trail: '+t.sym+' '+t.dir,'Stop: '+fp(s.trailStop,dec));
     }
   }
-
-  // Segurança: fecha após 4h
-  if(Date.now()-t.openTime > 4*60*60*1000){
-    const result=done>=0?'tp':'sl';
-    finalizeTradeResult(t,alertId,result,cur,'⏱ Encerrado (4h)',`${t.sym} encerrado por tempo`,'#7a8099');
+  // 4h timeout
+  if(Date.now()-t.openTime>4*60*60*1000){
+    finalizeTrade(t,alertId,done>=0?'tp':'sl',cur,'⏱ Encerrado (4h)');
   }
 }
 
-// Finaliza um trade com resultado
-function finalizeTradeResult(t,alertId,result,exitPrice,title,msg,color){
-  if(!activeTrades[alertId]) return; // já foi finalizado
+function finalizeTrade(t,alertId,result,exitPrice,msg){
+  if(!activeTrades[alertId])return;
   delete activeTrades[alertId];
-
-  // Registra resultado
   setAlertResult(alertId,result,exitPrice);
   recordTrade(t,result,exitPrice);
-
-  // Se era o trade principal, fecha o monitor
-  if(t===trade){
+  const isPrimary=t===trade;
+  showToast(result==='tp'?'ts':'tr2',result==='tp'?'✅':'❌',msg,t.sym+' '+t.dir);
+  if(soundOn)playBeep(result==='tp'?95:result==='sl'?40:60,result);
+  if(result==='tp'&&narratorOn)narrateTP(t.sym,exitPrice,t.sltp.dec);
+  if(result==='sl'&&narratorOn)narrateSL(t.sym,exitPrice,t.sltp.dec);
+  renderAlerts();updateHistStats();
+  if(isPrimary){
     clearInterval(tradeTimer);tradeTimer=null;
-    trade=null;overlay=null;
+    overlay=null;drawChart();
     const g=id=>document.getElementById(id);
     const stEl=g('tm-st');
-    if(result==='tp') stEl.textContent='✅ WIN!';
-    else if(result==='sl') stEl.textContent='❌ LOSS';
-    else stEl.textContent='🛡 BE';
+    stEl.textContent=result==='tp'?'✅ WIN':result==='sl'?'❌ LOSS':'🛡 BE';
     stEl.className='tm-st '+(result==='tp'?'dtp':result==='sl'?'dsl':'be');
-    drawChart();
-    showToast('ts',result==='tp'?'✅':'❌',title,msg);
-    if(soundOn) playBeep(result==='tp'?95:result==='sl'?40:60,result);
-    // Fecha o monitor após 3s e inicia próximo trade se tiver
     setTimeout(()=>{
-      closeTrade();
-      renderAlerts();
-      updateHistStats();
-      // Promove próximo trade ativo para principal
+      // Promove próximo trade se tiver
       const nextId=Object.keys(activeTrades)[0];
-      if(nextId){
-        const nextT=activeTrades[nextId];
-        trade=nextT;
+      const nextT=nextId?activeTrades[nextId]:null;
+      if(nextT){
+        trade=nextT;overlay=null;
         const g=id=>document.getElementById(id);
-        g('tm').className='tm vis';
-        g('tm-sym').textContent=nextT.sym+' '+nextT.dir;
+        g('tm').className='tm vis';g('tm-sym').textContent=nextT.sym+' '+nextT.dir;
         g('tm-en').textContent=fp(nextT.sltp.entry,nextT.sltp.dec);
         g('tm-sl').textContent=fp(nextT.sltp.sl,nextT.sltp.dec);
         g('tm-tp').textContent=fp(nextT.sltp.tp,nextT.sltp.dec);
@@ -2146,53 +2027,35 @@ function finalizeTradeResult(t,alertId,result,exitPrice,title,msg,color){
         g('tr-lbl').textContent='Trail '+fp(nextT.sltp.trailLevel,nextT.sltp.dec);
         tradeTimer=setInterval(()=>monitorAllTrades(),2500);
         updateTradeMonitor();
-        showToast('ts','📊','Monitor atualizado',nextT.sym+' '+nextT.dir);
+      } else {
+        trade=null;closeTrade();
       }
     },3000);
   } else {
-    // Trade secundário finalizado — apenas atualiza alertas e stats
-    showToast('ts',result==='tp'?'✅':'❌',title,msg);
-    renderAlerts();
-    updateHistStats();
-    // Reinicia timer se ainda tem trades ativos
-    if(Object.keys(activeTrades).length>0 && !tradeTimer){
+    if(Object.keys(activeTrades).length>0&&!tradeTimer){
       tradeTimer=setInterval(()=>monitorAllTrades(),2500);
     }
   }
 }
+
 function updateTradeMonitor(){
   if(!trade)return;
-  const s=trade.sltp,isBuy=s.isBuy,cur=trade.cur,dec=s.dec;const g=id=>document.getElementById(id);
+  const s=trade.sltp,isBuy=s.isBuy,cur=trade.cur,dec=s.dec;
+  const g=id=>document.getElementById(id);
+  if(!cur||cur<=0)return;
   g('tm-cur').textContent=fp(cur,dec);
-  const pnl=isBuy?(cur-s.entry):(s.entry-cur);const pct2=(pnl/s.entry*100).toFixed(3);
-  const pe=g('tm-pnl');pe.textContent=(pnl>=0?'+':'')+fa(Math.abs(pnl),dec)+' ('+(pnl>=0?'+':'')+pct2+'%)';pe.className='tm-v '+(pnl>0?'g':pnl<0?'r':'');
-  const range=isBuy?s.tp-s.entry:s.entry-s.tp;const done=isBuy?cur-s.entry:s.entry-cur;
+  const pnl=isBuy?(cur-s.entry):(s.entry-cur);
+  const pe=g('tm-pnl');
+  pe.textContent=(pnl>=0?'+':'')+fa(Math.abs(pnl),dec)+' ('+(pnl>=0?'+':'')+(pnl/s.entry*100).toFixed(3)+'%)';
+  pe.className='tm-v '+(pnl>0?'g':pnl<0?'r':'');
+  const range=isBuy?s.tp-s.entry:s.entry-s.tp;
+  const done=isBuy?cur-s.entry:s.entry-cur;
   const pct=Math.max(0,Math.min(100,Math.round(done/range*100)));
-  const bar=g('prog-f');bar.style.width=pct+'%';bar.style.background=pct>=75?'#00e896':pct>=50?'#ffb547':'#4d9fff';
-  const stEl=g('tm-st');const atTR=isBuy?cur>=s.trailLevel:cur<=s.trailLevel;const atBE=isBuy?cur>=s.beLevel:cur<=s.beLevel;
-  if(atTR&&!trade.trDone){
-    trade.trDone=true;if(overlay){overlay.trail=s.trailStop;drawChart();}
-    g('tr-ttl').textContent='⚡ TRAILING STOP!';g('tr-sub').textContent=`${trade.sym} atingiu ${fp(s.trailLevel,dec)}. Trail stop: ${fp(s.trailStop,dec)}.`;g('tr-ban').className='pbanner trb vis';stEl.textContent='Trailing';stEl.className='tm-st tr';
-    if(soundOn)playBeep(90,'trail');showToast('tt','⚡','TRAILING — Proteja os Lucros!',`Trail: ${fp(s.trailStop,dec)}`);
-    narrateTrail(trade.sym,s.trailLevel,s.trailStop,dec);
-  } else if(atBE&&!trade.beDone){
-    trade.beDone=true;g('be-ttl').textContent='🛡 PROTEJA — Mova SL!';g('be-sub').textContent=`${trade.sym} atingiu BE (${fp(s.beLevel,dec)}). Mova SL → ${fp(s.entry,dec)} agora!`;g('be-ban').className='pbanner beb vis';stEl.textContent='Breakeven';stEl.className='tm-st be';
-    if(soundOn)playBeep(75,'be');showToast('tb','🛡','PROTEJA — Mova SL!',`SL → ${fp(s.entry,dec)}`);
-    narrateBreakeven(trade.sym,s.entry,s.beLevel,dec);
-  }
-  if(pct>=100){
-    clearInterval(tradeTimer);stEl.textContent='✓ TP!';stEl.className='tm-st dtp';overlay=null;drawChart();
-    showToast('ts','✅','Take Profit! Parabéns!',`${trade.sym} TP: ${fp(s.tp,dec)}`);
-    if(soundOn)playBeep(95,'tp');narrateTP(trade.sym,s.tp,dec);
-    setAlertResult(trade.alertId,'tp',cur);recordTrade(trade,'tp',s.tp);setTimeout(closeTrade,5000);return;
-  }
-  const hitSL=isBuy?cur<=s.sl:cur>=s.sl;
-  if(hitSL){
-    clearInterval(tradeTimer);stEl.textContent='✕ SL';stEl.className='tm-st dsl';overlay=null;drawChart();
-    showToast('tr2','❌','Stop Loss Atingido',fp(s.sl,dec));if(soundOn)playBeep(40,'sl');narrateSL(trade.sym,s.sl,dec);
-    setAlertResult(trade.alertId,'sl',cur);recordTrade(trade,'sl',s.sl);setTimeout(closeTrade,4000);return;
-  }
-  if(trade.beDone){const hitBE=isBuy?cur<=s.entry:cur>=s.entry;if(hitBE){clearInterval(tradeTimer);stEl.textContent='🛡 BE';stEl.className='tm-st be';overlay=null;drawChart();showToast('tb','🛡','Saiu no Breakeven','Zero a zero');if(soundOn)playBeep(60,'be');setAlertResult(trade.alertId,'be',s.entry);recordTrade(trade,'be',s.entry);setTimeout(closeTrade,4000);}}
+  const bar=g('prog-f');
+  bar.style.width=pct+'%';
+  bar.style.background=pct>=75?'#00e896':pct>=50?'#ffb547':'#4d9fff';
+  const n=Object.keys(activeTrades).length;
+  if(n>1) g('tm-st').textContent='+'+n+' trades ativos';
 }
 function closeTrade(){
   if(tradeTimer)clearInterval(tradeTimer);trade=null;overlay=null;
