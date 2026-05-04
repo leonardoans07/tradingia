@@ -1363,23 +1363,26 @@ function updateTFChip(){
 // ================================================================
 async function fetchAllPrices(){
   try{
+    // Busca todos os pares em paralelo — um por um, nunca falha por CORS
     const syms=Object.keys(PAIRS);
-    const url='https://api.binance.com/api/v3/ticker/24hr?symbols=['+syms.map(s=>'"'+s+'"').join(',')+']';
-    const res=await fetch(url);
-    if(!res.ok)throw new Error();
-    const data=await res.json();
-    data.forEach(item=>{
-      const s=item.symbol;
-      if(LIVE[s]){
-        LIVE[s].price=parseFloat(item.lastPrice);
-        LIVE[s].chg=parseFloat(item.priceChangePercent);
-        LIVE[s].ready=true;
+    const results = await Promise.allSettled(
+      syms.map(sym =>
+        fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`)
+          .then(r=>r.json())
+          .then(d=>({sym, price:parseFloat(d.lastPrice), chg:parseFloat(d.priceChangePercent)}))
+      )
+    );
+    let ok=0;
+    results.forEach(r=>{
+      if(r.status==='fulfilled' && r.value.price>0){
+        const {sym,price,chg}=r.value;
+        if(LIVE[sym]){LIVE[sym].price=price;LIVE[sym].chg=chg;LIVE[sym].ready=true;}
+        ok++;
       }
     });
-    buildTicker();updateHeaderPrice();setApiStatus(true);
-  }catch(e){
-    setApiStatus(false);
-  }
+    if(ok>0){buildTicker();updateHeaderPrice();setApiStatus(true);}
+    else setApiStatus(false);
+  }catch(e){setApiStatus(false);}
 }
 async function fetchSinglePrice(sym){
   try{const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`);const d=await r.json();return parseFloat(d.price);}
