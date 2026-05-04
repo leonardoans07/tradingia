@@ -1362,27 +1362,44 @@ function updateTFChip(){
 // BINANCE API
 // ================================================================
 async function fetchAllPrices(){
-  try{
-    // Busca todos os pares em paralelo — um por um, nunca falha por CORS
-    const syms=Object.keys(PAIRS);
-    const results = await Promise.allSettled(
-      syms.map(sym =>
-        fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`)
-          .then(r=>r.json())
-          .then(d=>({sym, price:parseFloat(d.lastPrice), chg:parseFloat(d.priceChangePercent)}))
-      )
-    );
-    let ok=0;
+  const syms=Object.keys(PAIRS);
+  let ok=0;
+
+  // Busca preço simples para todos — /ticker/price nunca falha
+  const priceResults=await Promise.allSettled(
+    syms.map(sym=>
+      fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`)
+        .then(r=>r.json())
+        .then(d=>({sym, price:parseFloat(d.price)}))
+    )
+  );
+  priceResults.forEach(r=>{
+    if(r.status==='fulfilled'&&r.value.price>0){
+      const{sym,price}=r.value;
+      if(LIVE[sym]){LIVE[sym].price=price;LIVE[sym].ready=true;}
+      ok++;
+    }
+  });
+
+  // Busca variação 24h separado (pode falhar para alguns pares sem afetar o preço)
+  Promise.allSettled(
+    syms.map(sym=>
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`)
+        .then(r=>r.json())
+        .then(d=>({sym, chg:parseFloat(d.priceChangePercent)}))
+    )
+  ).then(results=>{
     results.forEach(r=>{
-      if(r.status==='fulfilled' && r.value.price>0){
-        const {sym,price,chg}=r.value;
-        if(LIVE[sym]){LIVE[sym].price=price;LIVE[sym].chg=chg;LIVE[sym].ready=true;}
-        ok++;
+      if(r.status==='fulfilled'&&!isNaN(r.value.chg)){
+        const{sym,chg}=r.value;
+        if(LIVE[sym]) LIVE[sym].chg=chg;
       }
     });
-    if(ok>0){buildTicker();updateHeaderPrice();setApiStatus(true);}
-    else setApiStatus(false);
-  }catch(e){setApiStatus(false);}
+    buildTicker();updateHeaderPrice();
+  });
+
+  if(ok>0){buildTicker();updateHeaderPrice();setApiStatus(true);}
+  else setApiStatus(false);
 }
 async function fetchSinglePrice(sym){
   try{const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`);const d=await r.json();return parseFloat(d.price);}
