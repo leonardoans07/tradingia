@@ -1184,6 +1184,95 @@ function updateTFChip(){
 // ================================================================
 // BINANCE API
 // ================================================================
+// ================================================================
+// EDGE FUNCTION SUPABASE — índices e ouro sem CORS
+// ================================================================
+const EDGE_URL = 'https://dlgzpgqnadlqvmaymzep.supabase.co/functions/v1/smooth-processor';
+const EDGE_HDR = { Authorization: 'Bearer sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9' };
+
+async function fetchIndices(){
+  try{
+    const r = await fetch(EDGE_URL+'?type=indices', {headers: EDGE_HDR});
+    if(!r.ok) throw new Error('status '+r.status);
+    const d = await r.json();
+    // d = {'^GSPC': 5800, '^IXIC': 20000, '^BVSP': 130000}
+    const map = {'^GSPC':'SPX', '^IXIC':'NDX', '^BVSP':'IBOV'};
+    let updated = false;
+    Object.entries(d).forEach(([yahoo, price])=>{
+      const appKey = map[yahoo];
+      if(appKey && price > 0){
+        const old = LIVE[appKey]?.price || price;
+        LIVE[appKey].price = +parseFloat(price).toFixed(PAIRS[appKey]?.dec||2);
+        LIVE[appKey].chg   = old > 0 ? +((price-old)/old*100).toFixed(3) : 0;
+        LIVE[appKey].ready = true;
+        updated = true;
+      }
+    });
+    if(updated){ buildTicker(); updateHeaderPrice(); }
+    return true;
+  }catch(e){
+    console.log('fetchIndices error:', e.message);
+    return false;
+  }
+}
+
+async function fetchIndexCandles(sym, tf){
+  const yahooSym = PAIRS[sym]?.yahooSym;
+  if(!yahooSym) return false;
+  const intervalMap = {'1m':'1m','5m':'5m','15m':'15m','30m':'30m','1h':'1h','4h':'1h'};
+  const rangeMap    = {'1m':'1d','5m':'5d','15m':'1mo','30m':'3mo','1h':'3mo','4h':'6mo'};
+  const interval = intervalMap[tf]||'5m';
+  const range    = rangeMap[tf]||'5d';
+  try{
+    const url = `${EDGE_URL}?type=candles&sym=${encodeURIComponent(yahooSym)}&interval=${interval}&range=${range}`;
+    const r = await fetch(url, {headers: EDGE_HDR});
+    if(!r.ok) throw new Error('status '+r.status);
+    const data = await r.json();
+    const result = data?.chart?.result?.[0];
+    if(!result?.timestamp?.length) throw new Error('no data');
+    const {timestamp, indicators} = result;
+    const q = indicators.quote[0];
+    const dec = PAIRS[sym]?.dec || 2;
+    candles = timestamp.map((t,i)=>{
+      const o=q.open[i]||0, h=q.high[i]||0, l=q.low[i]||0, c=q.close[i]||0;
+      return {t:t*1000, o:+o.toFixed(dec), h:+h.toFixed(dec), l:+l.toFixed(dec), c:+c.toFixed(dec)};
+    }).filter(c=>c.c>0).slice(-80);
+    calcEMAs(); drawChart();
+    return true;
+  }catch(e){
+    console.log('fetchIndexCandles error:', e.message);
+    return false;
+  }
+}
+
+async function fetchGoldPrice(){
+  try{
+    const r = await fetch(EDGE_URL, {headers: EDGE_HDR});
+    if(!r.ok) throw new Error('status '+r.status);
+    const d = await r.json();
+    const price = parseFloat(d?.price||0);
+    if(price > 1000){
+      const old = LIVE['XAUUSDT']?.price || price;
+      LIVE['XAUUSDT'].price = +price.toFixed(2);
+      LIVE['XAUUSDT'].chg   = old > 0 ? +((price-old)/old*100).toFixed(3) : 0;
+      LIVE['XAUUSDT'].ready = true;
+      buildTicker(); updateHeaderPrice();
+      return true;
+    }
+  }catch(e){}
+  // Fallback PAXG
+  try{
+    const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
+    const d = await r.json();
+    const price = parseFloat(d.price);
+    if(price > 1000){
+      LIVE['XAUUSDT'].price = +price.toFixed(2);
+      LIVE['XAUUSDT'].ready = true;
+    }
+  }catch(e){}
+  return false;
+}
+
 async function fetchAllPrices(){
   try{
     const syms=Object.keys(PAIRS);
