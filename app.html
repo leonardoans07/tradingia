@@ -503,9 +503,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
       <option value="XRPUSDT">XRP/USDT — Ripple</option>
     </optgroup>
     <optgroup label="── Forex &amp; Ouro ──">
-      <option value="PAXGUSDT">XAU/USD — Ouro</option>
+      <option value="XAUUSDT">XAU/USD — Ouro</option>
       <option value="EURUSDT">EUR/USD — Euro</option>
       <option value="GBPUSDT">GBP/USD — Libra</option>
+    </optgroup>
+    <optgroup label="── Índices ──">
+      <option value="SPX">S&amp;P 500</option>
+      <option value="NDX">Nasdaq 100</option>
+      <option value="IBOV">Ibovespa</option>
     </optgroup>
   </select>
   <span class="clbl">Timeframe</span>
@@ -626,14 +631,20 @@ const STRATS=[
   {id:'bb',   ico:'⊙',clr:'#fde68a',name:'BB Squeeze',  vname:'Bollinger Bands'},
 ];
 const PAIRS={
-  BTCUSDT:{dec:2, type:'crypto', vname:'Bitcoin',    label:'BTC/USDT'},
-  ETHUSDT:{dec:2, type:'crypto', vname:'Ethereum',   label:'ETH/USDT'},
-  SOLUSDT:{dec:3, type:'crypto', vname:'Solana',     label:'SOL/USDT'},
-  BNBUSDT:{dec:2, type:'crypto', vname:'BNB',        label:'BNB/USDT'},
-  XRPUSDT:{dec:4, type:'crypto', vname:'Ripple',     label:'XRP/USDT'},
-  PAXGUSDT:{dec:2,type:'gold',   vname:'Ouro (PAXG)',label:'XAU/USD'},
-  EURUSDT:{dec:5, type:'forex',  vname:'Euro',       label:'EUR/USD'},
-  GBPUSDT:{dec:5, type:'forex',  vname:'Libra',      label:'GBP/USD'},
+  // Crypto — Binance
+  BTCUSDT:{dec:2, type:'crypto', vname:'Bitcoin',   label:'BTC/USDT',  src:'binance', binSym:'BTCUSDT'},
+  ETHUSDT:{dec:2, type:'crypto', vname:'Ethereum',  label:'ETH/USDT',  src:'binance', binSym:'ETHUSDT'},
+  SOLUSDT:{dec:3, type:'crypto', vname:'Solana',    label:'SOL/USDT',  src:'binance', binSym:'SOLUSDT'},
+  BNBUSDT:{dec:2, type:'crypto', vname:'BNB',       label:'BNB/USDT',  src:'binance', binSym:'BNBUSDT'},
+  XRPUSDT:{dec:4, type:'crypto', vname:'Ripple',    label:'XRP/USDT',  src:'binance', binSym:'XRPUSDT'},
+  // Forex e Ouro — Binance (PAXG = ouro 1:1)
+  XAUUSDT:{dec:2, type:'gold',   vname:'Ouro',      label:'XAU/USD',   src:'binance', binSym:'PAXGUSDT'},
+  EURUSDT:{dec:5, type:'forex',  vname:'Euro',      label:'EUR/USD',   src:'binance', binSym:'EURUSDT'},
+  GBPUSDT:{dec:5, type:'forex',  vname:'Libra',     label:'GBP/USD',   src:'binance', binSym:'GBPUSDT'},
+  // Índices — Yahoo Finance via proxy
+  SPX:    {dec:2, type:'index',  vname:'S&P 500',   label:'S&P 500',   src:'yahoo',   yahooSym:'^GSPC'},
+  NDX:    {dec:2, type:'index',  vname:'Nasdaq 100',label:'Nasdaq 100',src:'yahoo',   yahooSym:'^IXIC'},
+  IBOV:   {dec:0, type:'index',  vname:'Ibovespa',  label:'IBOV',      src:'yahoo',   yahooSym:'^BVSP'},
 };
 const ATR={
   crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006, H1:.009,  H4:.018},
