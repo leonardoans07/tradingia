@@ -1364,8 +1364,7 @@ function updateTFChip(){
 async function fetchAllPrices(){
   try{
     const syms=Object.keys(PAIRS);
-    const symsParam2=JSON.stringify(syms);
-    const url=`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(symsParam2)}`;
+    const url='https://api.binance.com/api/v3/ticker/24hr?symbols=['+syms.map(s=>'"'+s+'"').join(',')+']';
     const res=await fetch(url);
     if(!res.ok)throw new Error();
     const data=await res.json();
