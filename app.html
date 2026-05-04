@@ -666,6 +666,8 @@ const PAIRS={
   BNBUSDT:{dec:2,type:'crypto',vname:'BNB'},
   XRPUSDT:{dec:4,type:'crypto',vname:'Ripple'},
 };
+const MULTI_PAIRS=['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','EURUSDT','GBPUSDT'];
+
 const ATR={
   crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006,H1:.009,H4:.018},
   forex: {M1:.0003,M5:.0006,M15:.001, M30:.0018,H1:.003,H4:.006},
@@ -1362,7 +1364,8 @@ function updateTFChip(){
 async function fetchAllPrices(){
   try{
     const syms=Object.keys(PAIRS);
-    const url=`https://api.binance.com/api/v3/ticker/24hr?symbols=[${syms.map(s=>'"'+s+'"').join(',')}]`;
+    const symsParam2=JSON.stringify(syms);
+    const url=`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(symsParam2)}`;
     const res=await fetch(url);
     if(!res.ok)throw new Error();
     const data=await res.json();
