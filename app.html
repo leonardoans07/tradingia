@@ -639,6 +639,7 @@ const ATR={
   crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006, H1:.009,  H4:.018},
   gold:  {M1:.0004,M5:.0008,M15:.0013,M30:.002, H1:.0035, H4:.007},
   forex: {M1:.0003,M5:.0006,M15:.001, M30:.0018,H1:.003,  H4:.006},
+  index: {M1:.0008,M5:.0015,M15:.0025,M30:.004, H1:.007,  H4:.014},
 };
 const TF_KEY={'1m':'M1','5m':'M5','15m':'M15','30m':'M30','1h':'H1','4h':'H4'};
 
@@ -1122,9 +1123,7 @@ function init(){
   updateClock();
   updateTFChip();
   fetchAllPrices();
-  fetchGoldPrice();
   setInterval(fetchAllPrices,3000);
-  setInterval(fetchGoldPrice,5000); // ouro atualiza a cada 5s
   loadCandles();
   setInterval(updateLiveCandle,5000);
   document.getElementById('thr').addEventListener('input',function(){
@@ -1137,8 +1136,29 @@ function init(){
 }
 
 function onParChange(){
-  updateTFChip();candles=[];
-  document.getElementById('ct-sym').textContent=document.getElementById('sel-sym').value;
+  updateTFChip();
+  candles=[];
+  // BUGFIX: fecha trade em aberto ao trocar ativo e limpa overlay
+  if(trade){
+    const oldSym=trade.sym;
+    const newSym=document.getElementById('sel-sym').value;
+    if(oldSym!==newSym){
+      // Fecha o trade do ativo anterior
+      if(tradeTimer) clearInterval(tradeTimer);
+      // Marca como encerrado por troca de ativo
+      if(trade.alertId) setAlertResult(trade.alertId,'closed', trade.cur||trade.sltp.entry);
+      trade=null;
+      overlay=null;
+      document.getElementById('tm').className='tm';
+      closeBan('be');closeBan('tr');
+      showToast('tb','🔄','Ativo alterado','Trade anterior encerrado — monitorando '+newSym);
+    }
+  }
+  overlay=null; // limpa overlay sempre ao trocar
+  const sym=document.getElementById('sel-sym').value;
+  const label=PAIRS[sym]?.label||sym;
+  document.getElementById('ct-sym').textContent=label;
+  document.getElementById('m-sy').textContent=label;
   loadCandles();
 }
 function updateTFChip(){
@@ -1153,42 +1173,6 @@ function updateTFChip(){
 // ================================================================
 // BINANCE API
 // ================================================================
-// ================================================================
-// OURO — preço real via Edge Function Supabase (sem CORS)
-// ================================================================
-const GOLD_EDGE = 'https://dlgzpgqnadlqvmaymzep.supabase.co/functions/v1/smooth-processor';
-const GOLD_HEADERS = { 'Authorization': 'Bearer sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9' };
-
-async function fetchGoldPrice(){
-  try{
-    const r = await fetch(GOLD_EDGE, { headers: GOLD_HEADERS });
-    if(!r.ok) throw new Error('status '+r.status);
-    const d = await r.json();
-    const price = parseFloat(d?.price || d?.ask || 0);
-    if(price > 1000){
-      const old = LIVE['XAUUSDT']?.price || price;
-      LIVE['XAUUSDT'].price = +price.toFixed(2);
-      LIVE['XAUUSDT'].chg   = old > 0 ? +((price-old)/old*100).toFixed(3) : 0;
-      LIVE['XAUUSDT'].ready = true;
-      return true;
-    }
-  }catch(e){
-    console.log('Gold edge error:', e.message);
-  }
-  // Fallback — PAXGUSDT da Binance
-  try{
-    const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
-    const d = await r.json();
-    const price = parseFloat(d.price);
-    if(price > 1000){
-      LIVE['XAUUSDT'].price = +price.toFixed(2);
-      LIVE['XAUUSDT'].ready = true;
-      return true;
-    }
-  }catch(e){}
-  return false;
-}
-
 async function fetchAllPrices(){
   try{
     const syms=Object.keys(PAIRS);
@@ -1250,7 +1234,7 @@ async function updateLiveCandle(){
 function genFakeCandles(){
   const sym=document.getElementById('sel-sym').value;
   const type=PAIRS[sym]?.type||'crypto';
-  const bases={BTCUSDT:78000,ETHUSDT:3100,SOLUSDT:155,BNBUSDT:590,XRPUSDT:0.52,XAUUSDT:4620,EURUSDT:1.0850,GBPUSDT:1.2700};
+  const bases={BTCUSDT:78000,ETHUSDT:3100,SOLUSDT:155,BNBUSDT:590,XRPUSDT:0.52,XAUUSDT:4620,EURUSDT:1.0850,GBPUSDT:1.2700,SPX:5800,NDX:20000,IBOV:130000};
   const price=LIVE[sym]?.price||bases[sym]||1000;
   const v=type==='gold'?.0008:type==='forex'?.0004:.003;const now=Date.now();candles=[];let p=price*(1-Math.random()*.015);
   for(let i=79;i>=0;i--){const t=now-i*5*60*1000,o=p;const c=o*(1+(Math.random()-.47)*v*2);const h=Math.max(o,c)*(1+Math.random()*v*.4);const l=Math.min(o,c)*(1-Math.random()*v*.4);candles.push({t,o:+o.toFixed(2),h:+h.toFixed(2),l:+l.toFixed(2),c:+c.toFixed(2)});p=c;}
@@ -1271,10 +1255,11 @@ function buildTicker(){
   const keys=Object.keys(PAIRS).filter(k=>LIVE[k].ready);if(!keys.length)return;
   const items=[...keys,...keys];
   document.getElementById('ticker').innerHTML=items.map(sym=>{
-    const{price,chg}=LIVE[sym];const dec=PAIRS[sym].dec;
-    const label=PAIRS[sym]?.label||sym.replace('USDT','');
+    const L=LIVE[sym];if(!L?.ready)return'';
+    const{price,chg}=L;const dec=PAIRS[sym]?.dec||2;
+    const label=PAIRS[sym]?.label||sym;
     return `<div class="ti"><span class="ti-sym">${label}</span><span class="ti-p">${fp(price,dec)}</span><span class="ti-c ${chg>=0?'up':'dn'}">${(chg>=0?'+':'')+chg.toFixed(2)}%</span><span class="ti-sep">|</span></div>`;
-  }).join('');
+  }).filter(Boolean).join('');
 }
 function updateHeaderPrice(){
   const sym=document.getElementById('sel-sym').value;if(!LIVE[sym]?.ready)return;
@@ -1413,6 +1398,27 @@ function computeScores(sym,tf){
     if(sym==='SOLUSDT'){
       if(s.id==='trend'||s.id==='ema')score+=12;
       if(s.id==='liq')score+=8;
+    }
+    // Índices — peso máximo para tendência, EMA, VWAP e S/R
+    if(sym==='SPX'||sym==='NDX'){
+      if(s.id==='trend')score+=18;   // índices são ativos de tendência forte
+      if(s.id==='ema')score+=16;     // EMA Stack muito respeitada
+      if(s.id==='vwap')score+=14;    // VWAP fundamental para índices
+      if(s.id==='sr')score+=14;      // S/R histórico muito respeitado
+      if(s.id==='vol')score+=12;     // volume move índice
+      if(s.id==='bos')score+=10;     // BOS confirma direção
+      if(s.id==='fvg')score+=8;      // FVG funciona mas menos
+      if(s.id==='rsi')score-=5;      // RSI menos confiável em índices
+      if(s.id==='bb')score-=5;       // BB menos eficiente
+    }
+    if(sym==='IBOV'){
+      if(s.id==='trend')score+=18;   // IBOV segue tendência forte
+      if(s.id==='sr')score+=16;      // S/R muito forte no IBOV
+      if(s.id==='ema')score+=14;
+      if(s.id==='vwap')score+=12;
+      if(s.id==='vol')score+=14;     // volume é muito relevante no IBOV
+      if(s.id==='fvg')score+=8;
+      if(s.id==='liq')score+=10;     // varredura de liquidez comum
     }
 
     // Bonus por timeframe
@@ -1624,7 +1630,13 @@ function renderAlerts(){
 // TRADE MONITOR
 // ================================================================
 function startTrade(sym,dir,sltp,tf){
-  if(trade)return;const alertId=alerts[0]?.id;
+  // Fecha qualquer trade anterior do mesmo ativo
+  if(trade && trade.sym===sym){
+    if(tradeTimer) clearInterval(tradeTimer);
+    trade=null;
+  }
+  if(trade) return; // trade de outro ativo ativo, não inicia
+  const alertId=alerts[0]?.id;
   trade={sym,dir,sltp,tf,cur:sltp.entry,beDone:false,trDone:false,alertId};
   const g=id=>document.getElementById(id);
   g('tm').className='tm vis';g('tm-sym').textContent=sym+' '+dir;g('tm-en').textContent=fp(sltp.entry,sltp.dec);g('tm-sl').textContent=fp(sltp.sl,sltp.dec);g('tm-tp').textContent=fp(sltp.tp,sltp.dec);g('be-lbl').textContent='BE '+fp(sltp.beLevel,sltp.dec);g('tr-lbl').textContent='Trail '+fp(sltp.trailLevel,sltp.dec);
