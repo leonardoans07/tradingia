@@ -319,6 +319,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 .no-al{text-align:center;padding:28px 12px;color:var(--t3);font-family:var(--mono);font-size:9px;line-height:2.2}
 .footer{text-align:center;font-family:var(--mono);font-size:8px;color:var(--t3);padding-top:10px;border-top:1px solid var(--b)}
 
+/* MULTI SCANNER */
+.multi-panel{background:var(--bg2);border:1px solid var(--b);border-radius:var(--radl);padding:10px 14px;margin-bottom:14px}
+.multi-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.multi-title{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono)}
+.multi-status{font-family:var(--mono);font-size:9px;color:var(--t3)}
+.multi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.mp-card{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:8px 6px;text-align:center;transition:all .2s;cursor:pointer;position:relative}
+.mp-card:hover{border-color:var(--b2)}
+.mp-card.active{border-color:var(--gbd);background:var(--gb)}
+.mp-card.signal{border-color:var(--gold)!important;background:rgba(255,215,0,.08)!important;animation:mpulse 1s ease-in-out infinite}
+@keyframes mpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,.3)}50%{box-shadow:0 0 0 6px rgba(255,215,0,0)}}
+.mp-sym{font-size:9px;font-weight:700;margin-bottom:2px}
+.mp-price{font-family:var(--mono);font-size:8px;color:var(--t2);margin-bottom:3px}
+.mp-score{font-family:var(--mono);font-size:14px;font-weight:700;line-height:1}
+.mp-score.g{color:var(--g)}.mp-score.a{color:var(--a)}.mp-score.x{color:var(--t3)}
+.mp-dir{font-family:var(--mono);font-size:7px;padding:1px 5px;border-radius:4px;display:inline-block;margin-top:2px}
+.mp-dir.b{background:var(--gb);color:var(--g)}.mp-dir.s{background:var(--rb);color:var(--r)}
+.mp-scanning{font-family:var(--mono);font-size:8px;color:var(--t3);animation:blink 1s infinite}
+.mp-signal-badge{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:var(--gold);border:2px solid var(--bg3);display:none}
+.mp-card.signal .mp-signal-badge{display:block}
+.btn-multi{height:27px;padding:0 12px;border-radius:6px;font-family:var(--mono);font-size:10px;font-weight:500;cursor:pointer;border:1px solid var(--b2);background:var(--bg3);color:var(--t);transition:all .15s;display:flex;align-items:center;gap:4px}
+.btn-multi.on{background:rgba(255,215,0,.1);color:var(--gold);border-color:rgba(255,215,0,.3)}
+
 @media(max-width:1000px){.layout{grid-template-columns:1fr}.mets{grid-template-columns:repeat(3,1fr)}.tm-grid{grid-template-columns:repeat(3,1fr)}.strat-mini{grid-template-columns:repeat(7,1fr)}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -426,7 +449,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
     <div class="brand-ico">⚡</div>
     <div>
       <div class="brand-name">IA Xauron <span style="color:#ffd700;font-size:10px">v1</span></div>
-      <div class="brand-sub">Análise com IA · Narrador por Voz · Modo Focus · Binance API</div>
+      <div class="brand-sub">Análise com IA · 8 Pares Crypto · Narrador por Voz · Binance API</div>
     </div>
   </div>
   <div class="hdr-r">
@@ -478,6 +501,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   </div>
 </div>
 
+<!-- MULTI SCANNER PANEL -->
+<div class="multi-panel" id="multi-panel">
+  <div class="multi-hdr">
+    <span class="multi-title">⚡ Scanner Multi-Par — Análise Simultânea</span>
+    <span class="multi-status" id="multi-status">Aguardando...</span>
+  </div>
+  <div class="multi-grid" id="multi-grid">
+    <!-- cards gerados por JS -->
+  </div>
+</div>
+
 <div class="tick-wrap">
   <div class="tick-fade-l"></div><div class="tick-fade-r"></div>
   <div class="tick-scroll" id="ticker"><span style="font-family:var(--mono);font-size:10px;color:var(--t3)">carregando preços...</span></div>
@@ -496,21 +530,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   <span class="clbl">Símbolo</span>
   <select id="sel-sym" onchange="onParChange()">
     <optgroup label="── Crypto ──">
-      <option value="BTCUSDT">BTC/USDT — Bitcoin</option>
-      <option value="ETHUSDT">ETH/USDT — Ethereum</option>
-      <option value="SOLUSDT">SOL/USDT — Solana</option>
-      <option value="BNBUSDT">BNB/USDT — BNB</option>
-      <option value="XRPUSDT">XRP/USDT — Ripple</option>
+      <option value="BTCUSDT">BTC — Bitcoin</option>
+      <option value="ETHUSDT">ETH — Ethereum</option>
+      <option value="SOLUSDT">SOL — Solana</option>
+      <option value="XRPUSDT">XRP — Ripple</option>
     </optgroup>
-    <optgroup label="── Forex &amp; Ouro ──">
-      <option value="XAUUSDT">XAU/USD — Ouro</option>
+    <optgroup label="── Forex ──">
       <option value="EURUSDT">EUR/USD — Euro</option>
       <option value="GBPUSDT">GBP/USD — Libra</option>
-    </optgroup>
-    <optgroup label="── Índices ──">
-      <option value="SPX">S&amp;P 500</option>
-      <option value="NDX">Nasdaq 100</option>
-      <option value="IBOV">Ibovespa</option>
     </optgroup>
   </select>
   <span class="clbl">Timeframe</span>
@@ -530,6 +557,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   <button class="btn pri" onclick="runAnalysis()">▶ Analisar</button>
   <button class="btn" id="btn-auto" onclick="toggleAuto()">Auto: OFF</button>
   <button class="btn" id="btn-focus" onclick="toggleFocus()">⊞ Focus</button>
+  <button class="btn btn-multi" id="btn-multi" onclick="toggleMultiScan()">🔍 Multi-Scan</button>
   <button class="btn" onclick="clearAll()">Limpar</button>
 </div>
 
@@ -607,7 +635,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   <div class="hist-list" id="hist-list"><div style="text-align:center;padding:10px;font-family:var(--mono);font-size:8px;color:var(--t3)">Nenhum trade finalizado</div></div>
 </div>
 
-<div class="footer">IA Xauron v1 · Preços reais Binance API · Não constitui recomendação financeira</div>
+<div class="footer">IA Xauron v1 · 8 Pares Crypto · Binance API · Não constitui recomendação financeira</div>
 </div>
 <div class="toasts" id="toasts"></div>
 
@@ -631,26 +659,16 @@ const STRATS=[
   {id:'bb',   ico:'⊙',clr:'#fde68a',name:'BB Squeeze',  vname:'Bollinger Bands'},
 ];
 const PAIRS={
-  // Crypto — Binance
-  BTCUSDT:{dec:2, type:'crypto', vname:'Bitcoin',   label:'BTC/USDT',  src:'binance', binSym:'BTCUSDT'},
-  ETHUSDT:{dec:2, type:'crypto', vname:'Ethereum',  label:'ETH/USDT',  src:'binance', binSym:'ETHUSDT'},
-  SOLUSDT:{dec:3, type:'crypto', vname:'Solana',    label:'SOL/USDT',  src:'binance', binSym:'SOLUSDT'},
-  BNBUSDT:{dec:2, type:'crypto', vname:'BNB',       label:'BNB/USDT',  src:'binance', binSym:'BNBUSDT'},
-  XRPUSDT:{dec:4, type:'crypto', vname:'Ripple',    label:'XRP/USDT',  src:'binance', binSym:'XRPUSDT'},
-  // Forex e Ouro — Binance (PAXG = ouro 1:1)
-  XAUUSDT:{dec:2, type:'gold',   vname:'Ouro',      label:'XAU/USD',   src:'binance', binSym:'PAXGUSDT'},
-  EURUSDT:{dec:5, type:'forex',  vname:'Euro',      label:'EUR/USD',   src:'binance', binSym:'EURUSDT'},
-  GBPUSDT:{dec:5, type:'forex',  vname:'Libra',     label:'GBP/USD',   src:'binance', binSym:'GBPUSDT'},
-  // Índices — Yahoo Finance via proxy
-  SPX:    {dec:2, type:'index',  vname:'S&P 500',   label:'S&P 500',   src:'yahoo',   yahooSym:'^GSPC'},
-  NDX:    {dec:2, type:'index',  vname:'Nasdaq 100',label:'Nasdaq 100',src:'yahoo',   yahooSym:'^IXIC'},
-  IBOV:   {dec:0, type:'index',  vname:'Ibovespa',  label:'IBOV',      src:'yahoo',   yahooSym:'^BVSP'},
+  BTCUSDT:{dec:2,type:'crypto',vname:'Bitcoin'},
+  XAUUSDT:{dec:2,type:'gold',  vname:'Ouro'},
+  ETHUSDT:{dec:2,type:'crypto',vname:'Ethereum'},
+  SOLUSDT:{dec:3,type:'crypto',vname:'Solana'},
+  BNBUSDT:{dec:2,type:'crypto',vname:'BNB'},
+  XRPUSDT:{dec:4,type:'crypto',vname:'Ripple'},
 };
 const ATR={
-  crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006, H1:.009,  H4:.018},
-  gold:  {M1:.0004,M5:.0008,M15:.0013,M30:.002, H1:.0035, H4:.007},
-  forex: {M1:.0003,M5:.0006,M15:.001, M30:.0018,H1:.003,  H4:.006},
-  index: {M1:.0008,M5:.0015,M15:.0025,M30:.004, H1:.007,  H4:.014},
+  crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006,H1:.009,H4:.018},
+  forex: {M1:.0003,M5:.0006,M15:.001, M30:.0018,H1:.003,H4:.006},
 };
 const TF_KEY={'1m':'M1','5m':'M5','15m':'M15','30m':'M30','1h':'H1','4h':'H4'};
 
@@ -1125,6 +1143,184 @@ function updateCreditsUI(){
   el.style.color=_userCredits>20?'var(--gold)':_userCredits>5?'var(--a)':'var(--r)';
 }
 
+
+// ================================================================
+// MULTI-SCANNER — analisa 6 pares simultaneamente
+// ================================================================
+let multiMode = false;
+let multiTimer = null;
+let multiResults = {}; // { sym: {score, dir, fired, lastSignal} }
+
+// Inicializa cards do multi-grid
+function buildMultiGrid(){
+  const grid = document.getElementById('multi-grid');
+  if(!grid) return;
+  grid.innerHTML = MULTI_PAIRS.map(sym => {
+    const label = PAIRS[sym]?.label || sym;
+    return `<div class="mp-card" id="mp-${sym}" onclick="selectFromMulti('${sym}')">
+      <div class="mp-signal-badge"></div>
+      <div class="mp-sym">${label}</div>
+      <div class="mp-price" id="mp-price-${sym}">--</div>
+      <div class="mp-score x" id="mp-score-${sym}">--</div>
+      <div class="mp-scanning" id="mp-scan-${sym}">aguardando</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMultiScan(){
+  multiMode = !multiMode;
+  const btn = document.getElementById('btn-multi');
+  if(multiMode){
+    btn.className = 'btn btn-multi on';
+    btn.textContent = '🔍 Multi: ON';
+    document.getElementById('multi-status').textContent = 'Escaneando todos os pares...';
+    runMultiScan();
+    multiTimer = setInterval(runMultiScan, 15000); // analisa todos a cada 15s
+    if(narratorOn) speak('Scanner multi-par ativado. Monitorando seis pares simultaneamente.',false);
+  } else {
+    btn.className = 'btn btn-multi';
+    btn.textContent = '🔍 Multi-Scan';
+    clearInterval(multiTimer);
+    document.getElementById('multi-status').textContent = 'Pausado';
+    if(narratorOn) speak('Scanner pausado.',false);
+  }
+}
+
+async function runMultiScan(){
+  const tf = document.getElementById('sel-tf').value;
+  const tfK = TF_KEY[tf] || 'M5';
+  const thr = parseInt(document.getElementById('thr').value);
+
+  document.getElementById('multi-status').textContent = `Analisando ${MULTI_PAIRS.length} pares...`;
+
+  // Atualiza preços primeiro
+  await fetchAllPrices();
+
+  let signalsFound = 0;
+
+  // Analisa cada par
+  for(const sym of MULTI_PAIRS){
+    const price = LIVE[sym]?.price || 0;
+    if(!price) continue;
+
+    // Atualiza card com preço
+    const dec = PAIRS[sym]?.dec || 2;
+    const priceEl = document.getElementById(`mp-price-${sym}`);
+    if(priceEl) priceEl.textContent = fp(price, dec);
+
+    // Scan do símbolo
+    const scanEl = document.getElementById(`mp-scan-${sym}`);
+    if(scanEl) scanEl.textContent = 'analisando...';
+
+    // Pequeno delay para não sobrecarregar
+    await new Promise(r => setTimeout(r, 200));
+
+    const {res, global, dir, trendType} = computeScores(sym, tfK);
+
+    let fired = 0;
+    STRATS.forEach(s => { if(res[s.id].signal !== 'neutro' && res[s.id].score >= thr) fired++; });
+
+    // Atualiza card
+    const card = document.getElementById(`mp-${sym}`);
+    const scoreEl = document.getElementById(`mp-score-${sym}`);
+
+    if(scoreEl){
+      scoreEl.textContent = global + 'pts';
+      scoreEl.className = 'mp-score ' + (global >= thr ? 'g' : global >= 55 ? 'a' : 'x');
+    }
+
+    if(scanEl){
+      if(global >= thr){
+        scanEl.innerHTML = `<span class="mp-dir ${dir==='BUY'?'b':'s'}">${dir}</span>`;
+      } else {
+        scanEl.textContent = global + ' pts';
+        scanEl.style.color = 'var(--t3)';
+      }
+    }
+
+    // Sinal forte encontrado!
+    if(global >= thr){
+      signalsFound++;
+      card?.classList.add('signal');
+
+      // Evita repetir o mesmo sinal do mesmo par em menos de 2 min
+      const lastSignal = multiResults[sym]?.lastSignal || 0;
+      const now = Date.now();
+      if(now - lastSignal > 120000){
+        multiResults[sym] = {score: global, dir, fired, lastSignal: now};
+
+        const sltp = calcSLTP(sym, dir, global, tf, price);
+        const label = PAIRS[sym]?.label || sym;
+
+        // Adiciona alerta
+        addAlert(sym, tfK, global, dir, fired, sltp, price, trendType);
+
+        // Narra se narrador ativo
+        if(narratorOn){
+          const dirWord = dir === 'BUY' ? 'compra' : 'venda';
+          speak(`Atenção! Setup de ${dirWord} em ${PAIRS[sym]?.vname||sym}. Score ${global} pontos. Entrada em ${fpVoice(sltp.entry, sltp.dec)}.`, true);
+        }
+
+        // Toast
+        showToast('ts', '⚡', `${label} — ${dir} ${global}pts`, `ENT ${fp(sltp.entry,sltp.dec)} · SL ${fp(sltp.sl,sltp.dec)} · TP ${fp(sltp.tp,sltp.dec)}`);
+
+        // Som
+        if(soundOn) playBeep(global, 'signal');
+
+        // Se é o símbolo atual, carrega overlay no gráfico
+        const currentSym = document.getElementById('sel-sym').value;
+        if(currentSym === sym){
+          overlay = {entry:sltp.entry, sl:sltp.sl, tp:sltp.tp, be:sltp.beLevel, trail:null, isBuy:sltp.isBuy, dec:sltp.dec};
+          drawChart();
+          updateBadges(dir, sltp, global, trendType);
+        }
+      }
+    } else {
+      card?.classList.remove('signal');
+    }
+
+    // Destaca card do ativo selecionado
+    const currentSym = document.getElementById('sel-sym').value;
+    if(sym === currentSym) card?.classList.add('active');
+    else card?.classList.remove('active');
+  }
+
+  const now = new Date().toLocaleTimeString('pt-BR');
+  document.getElementById('multi-status').textContent =
+    signalsFound > 0
+      ? `⚡ ${signalsFound} setup${signalsFound>1?'s':''} encontrado${signalsFound>1?'s':''} · ${now}`
+      : `✓ Nenhum setup acima do limiar · ${now}`;
+}
+
+function selectFromMulti(sym){
+  // Seleciona o par clicado no seletor principal e carrega o gráfico
+  const sel = document.getElementById('sel-sym');
+  if(sel) sel.value = sym;
+  onParChange();
+  // Destaca card ativo
+  MULTI_PAIRS.forEach(s => {
+    const c = document.getElementById(`mp-${s}`);
+    if(c) c.classList.toggle('active', s === sym);
+  });
+  // Scroll para o gráfico
+  document.querySelector('.chart-panel')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Atualiza preços dos cards do multi ao receber novos preços
+function updateMultiPrices(){
+  MULTI_PAIRS.forEach(sym => {
+    if(!LIVE[sym]?.ready) return;
+    const dec = PAIRS[sym]?.dec || 2;
+    const el = document.getElementById(`mp-price-${sym}`);
+    const chg = LIVE[sym].chg || 0;
+    if(el){
+      el.textContent = fp(LIVE[sym].price, dec);
+      el.style.color = chg >= 0 ? 'var(--g)' : 'var(--r)';
+    }
+  });
+}
+
+
 function init(){
   initSupabase();
   buildStratMini();
@@ -1147,29 +1343,8 @@ function init(){
 }
 
 function onParChange(){
-  updateTFChip();
-  candles=[];
-  // BUGFIX: fecha trade em aberto ao trocar ativo e limpa overlay
-  if(trade){
-    const oldSym=trade.sym;
-    const newSym=document.getElementById('sel-sym').value;
-    if(oldSym!==newSym){
-      // Fecha o trade do ativo anterior
-      if(tradeTimer) clearInterval(tradeTimer);
-      // Marca como encerrado por troca de ativo
-      if(trade.alertId) setAlertResult(trade.alertId,'closed', trade.cur||trade.sltp.entry);
-      trade=null;
-      overlay=null;
-      document.getElementById('tm').className='tm';
-      closeBan('be');closeBan('tr');
-      showToast('tb','🔄','Ativo alterado','Trade anterior encerrado — monitorando '+newSym);
-    }
-  }
-  overlay=null; // limpa overlay sempre ao trocar
-  const sym=document.getElementById('sel-sym').value;
-  const label=PAIRS[sym]?.label||sym;
-  document.getElementById('ct-sym').textContent=label;
-  document.getElementById('m-sy').textContent=label;
+  updateTFChip();candles=[];
+  document.getElementById('ct-sym').textContent=document.getElementById('sel-sym').value;
   loadCandles();
 }
 function updateTFChip(){
@@ -1184,95 +1359,6 @@ function updateTFChip(){
 // ================================================================
 // BINANCE API
 // ================================================================
-// ================================================================
-// EDGE FUNCTION SUPABASE — índices e ouro sem CORS
-// ================================================================
-const EDGE_URL = 'https://dlgzpgqnadlqvmaymzep.supabase.co/functions/v1/smooth-processor';
-const EDGE_HDR = {}; // função pública — sem auth necessário
-
-async function fetchIndices(){
-  try{
-    const r = await fetch(EDGE_URL+'?type=indices', {headers: EDGE_HDR});
-    if(!r.ok) throw new Error('status '+r.status);
-    const d = await r.json();
-    // d = {'^GSPC': 5800, '^IXIC': 20000, '^BVSP': 130000}
-    const map = {'^GSPC':'SPX', '^IXIC':'NDX', '^BVSP':'IBOV'};
-    let updated = false;
-    Object.entries(d).forEach(([yahoo, price])=>{
-      const appKey = map[yahoo];
-      if(appKey && price > 0){
-        const old = LIVE[appKey]?.price || price;
-        LIVE[appKey].price = +parseFloat(price).toFixed(PAIRS[appKey]?.dec||2);
-        LIVE[appKey].chg   = old > 0 ? +((price-old)/old*100).toFixed(3) : 0;
-        LIVE[appKey].ready = true;
-        updated = true;
-      }
-    });
-    if(updated){ buildTicker(); updateHeaderPrice(); }
-    return true;
-  }catch(e){
-    console.log('fetchIndices error:', e.message);
-    return false;
-  }
-}
-
-async function fetchIndexCandles(sym, tf){
-  const yahooSym = PAIRS[sym]?.yahooSym;
-  if(!yahooSym) return false;
-  const intervalMap = {'1m':'1m','5m':'5m','15m':'15m','30m':'30m','1h':'1h','4h':'1h'};
-  const rangeMap    = {'1m':'1d','5m':'5d','15m':'1mo','30m':'3mo','1h':'3mo','4h':'6mo'};
-  const interval = intervalMap[tf]||'5m';
-  const range    = rangeMap[tf]||'5d';
-  try{
-    const url = `${EDGE_URL}?type=candles&sym=${encodeURIComponent(yahooSym)}&interval=${interval}&range=${range}`;
-    const r = await fetch(url, {headers: EDGE_HDR});
-    if(!r.ok) throw new Error('status '+r.status);
-    const data = await r.json();
-    const result = data?.chart?.result?.[0];
-    if(!result?.timestamp?.length) throw new Error('no data');
-    const {timestamp, indicators} = result;
-    const q = indicators.quote[0];
-    const dec = PAIRS[sym]?.dec || 2;
-    candles = timestamp.map((t,i)=>{
-      const o=q.open[i]||0, h=q.high[i]||0, l=q.low[i]||0, c=q.close[i]||0;
-      return {t:t*1000, o:+o.toFixed(dec), h:+h.toFixed(dec), l:+l.toFixed(dec), c:+c.toFixed(dec)};
-    }).filter(c=>c.c>0).slice(-80);
-    calcEMAs(); drawChart();
-    return true;
-  }catch(e){
-    console.log('fetchIndexCandles error:', e.message);
-    return false;
-  }
-}
-
-async function fetchGoldPrice(){
-  try{
-    const r = await fetch(EDGE_URL, {headers: EDGE_HDR});
-    if(!r.ok) throw new Error('status '+r.status);
-    const d = await r.json();
-    const price = parseFloat(d?.price||0);
-    if(price > 1000){
-      const old = LIVE['XAUUSDT']?.price || price;
-      LIVE['XAUUSDT'].price = +price.toFixed(2);
-      LIVE['XAUUSDT'].chg   = old > 0 ? +((price-old)/old*100).toFixed(3) : 0;
-      LIVE['XAUUSDT'].ready = true;
-      buildTicker(); updateHeaderPrice();
-      return true;
-    }
-  }catch(e){}
-  // Fallback PAXG
-  try{
-    const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT');
-    const d = await r.json();
-    const price = parseFloat(d.price);
-    if(price > 1000){
-      LIVE['XAUUSDT'].price = +price.toFixed(2);
-      LIVE['XAUUSDT'].ready = true;
-    }
-  }catch(e){}
-  return false;
-}
-
 async function fetchAllPrices(){
   try{
     const syms=Object.keys(PAIRS);
@@ -1282,20 +1368,15 @@ async function fetchAllPrices(){
     const data=await res.json();
     data.forEach(item=>{
       const s=item.symbol;
-      if(LIVE[s]){LIVE[s].price=parseFloat(item.lastPrice);LIVE[s].chg=parseFloat(item.priceChangePercent);LIVE[s].ready=true;}
+      if(LIVE[s]){
+        LIVE[s].price=parseFloat(item.lastPrice);
+        LIVE[s].chg=parseFloat(item.priceChangePercent);
+        LIVE[s].ready=true;
+      }
     });
     buildTicker();updateHeaderPrice();setApiStatus(true);
   }catch(e){
-    try{
-      for(const sym of Object.keys(PAIRS)){
-        try{
-          const r2=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
-          const d2=await r2.json();
-          LIVE[sym].price=parseFloat(d2.lastPrice);LIVE[sym].chg=parseFloat(d2.priceChangePercent);LIVE[sym].ready=true;
-        }catch(_){}
-      }
-      buildTicker();updateHeaderPrice();setApiStatus(true);
-    }catch(_){setApiStatus(false);}
+    setApiStatus(false);
   }
 }
 async function fetchSinglePrice(sym){
@@ -1333,10 +1414,7 @@ async function updateLiveCandle(){
 }
 function genFakeCandles(){
   const sym=document.getElementById('sel-sym').value;
-  const type=PAIRS[sym]?.type||'crypto';
-  const bases={BTCUSDT:78000,ETHUSDT:3100,SOLUSDT:155,BNBUSDT:590,XRPUSDT:0.52,XAUUSDT:4620,EURUSDT:1.0850,GBPUSDT:1.2700,SPX:5800,NDX:20000,IBOV:130000};
-  const price=LIVE[sym]?.price||bases[sym]||1000;
-  const v=type==='gold'?.0008:type==='forex'?.0004:.003;const now=Date.now();candles=[];let p=price*(1-Math.random()*.015);
+  const price=LIVE[sym]?.price||60000;const v=PAIRS[sym]?.type==='gold'?.0008:.003;const now=Date.now();candles=[];let p=price*(1-Math.random()*.015);
   for(let i=79;i>=0;i--){const t=now-i*5*60*1000,o=p;const c=o*(1+(Math.random()-.47)*v*2);const h=Math.max(o,c)*(1+Math.random()*v*.4);const l=Math.min(o,c)*(1-Math.random()*v*.4);candles.push({t,o:+o.toFixed(2),h:+h.toFixed(2),l:+l.toFixed(2),c:+c.toFixed(2)});p=c;}
   calcEMAs();drawChart();
 }
@@ -1352,14 +1430,14 @@ function setApiStatus(ok){
   document.getElementById('live-lbl').textContent=ok?'Preços reais Binance':'Verificando...';
 }
 function buildTicker(){
+  updateMultiPrices();
   const keys=Object.keys(PAIRS).filter(k=>LIVE[k].ready);if(!keys.length)return;
   const items=[...keys,...keys];
   document.getElementById('ticker').innerHTML=items.map(sym=>{
-    const L=LIVE[sym];if(!L?.ready)return'';
-    const{price,chg}=L;const dec=PAIRS[sym]?.dec||2;
-    const label=PAIRS[sym]?.label||sym;
-    return `<div class="ti"><span class="ti-sym">${label}</span><span class="ti-p">${fp(price,dec)}</span><span class="ti-c ${chg>=0?'up':'dn'}">${(chg>=0?'+':'')+chg.toFixed(2)}%</span><span class="ti-sep">|</span></div>`;
-  }).filter(Boolean).join('');
+    const{price,chg}=LIVE[sym];const dec=PAIRS[sym].dec;
+    const lbl=PAIRS[sym]?.label||sym.replace('USDT','');
+    return `<div class="ti"><span class="ti-sym">${lbl}</span><span class="ti-p">${fp(price,dec)}</span><span class="ti-c ${chg>=0?'up':'dn'}">${(chg>=0?'+':'')+chg.toFixed(2)}%</span><span class="ti-sep">|</span></div>`;
+  }).join('');
 }
 function updateHeaderPrice(){
   const sym=document.getElementById('sel-sym').value;if(!LIVE[sym]?.ready)return;
@@ -1472,24 +1550,14 @@ function computeScores(sym,tf){
 
     // Bonus por ativo — cada ativo tem afinidade com certas estratégias
     if(sym==='BTCUSDT'){
-      if(s.id==='bos'||s.id==='trend')score+=10;
-      if(s.id==='vol'||s.id==='liq')score+=8;
+      if(s.id==='bos'||s.id==='trend')score+=10;   // BTC respeita muito estrutura
+      if(s.id==='vol'||s.id==='liq')score+=8;       // volume e liquidez fortes no BTC
       if(s.id==='fvg')score+=6;
     }
-    if(sym==='PAXGUSDT'){
-      if(s.id==='fvg'||s.id==='ob')score+=14;  // Ouro respeita muito FVG e OB
-      if(s.id==='sr'||s.id==='chan')score+=10;  // S/R e canal fortes no ouro
+    if(sym==='XAUUSDT'){
+      if(s.id==='fvg'||s.id==='ob')score+=14;       // Ouro respeita muito FVG e OB
+      if(s.id==='sr'||s.id==='chan')score+=10;       // S/R e canal fortes no ouro
       if(s.id==='ema')score+=6;
-    }
-    if(sym==='EURUSDT'){
-      if(s.id==='sr'||s.id==='vwap')score+=12; // EUR/USD respeita muito S/R e VWAP
-      if(s.id==='ema'||s.id==='trend')score+=10;
-      if(s.id==='fvg')score+=8;
-    }
-    if(sym==='GBPUSDT'){
-      if(s.id==='fvg'||s.id==='bos')score+=12; // GBP/USD muito agressivo em BOS e FVG
-      if(s.id==='sr'||s.id==='trend')score+=10;
-      if(s.id==='liq')score+=8;                // Libra tem muita varredura de liquidez
     }
     if(sym==='ETHUSDT'){
       if(s.id==='bos'||s.id==='choch')score+=10;
@@ -1499,26 +1567,22 @@ function computeScores(sym,tf){
       if(s.id==='trend'||s.id==='ema')score+=12;
       if(s.id==='liq')score+=8;
     }
-    // Índices — peso máximo para tendência, EMA, VWAP e S/R
-    if(sym==='SPX'||sym==='NDX'){
-      if(s.id==='trend')score+=18;   // índices são ativos de tendência forte
-      if(s.id==='ema')score+=16;     // EMA Stack muito respeitada
-      if(s.id==='vwap')score+=14;    // VWAP fundamental para índices
-      if(s.id==='sr')score+=14;      // S/R histórico muito respeitado
-      if(s.id==='vol')score+=12;     // volume move índice
-      if(s.id==='bos')score+=10;     // BOS confirma direção
-      if(s.id==='fvg')score+=8;      // FVG funciona mas menos
-      if(s.id==='rsi')score-=5;      // RSI menos confiável em índices
-      if(s.id==='bb')score-=5;       // BB menos eficiente
+    if(sym==='ADAUSDT'){
+      if(s.id==='sr'||s.id==='ob')score+=10;
+      if(s.id==='ema'||s.id==='trend')score+=8;
     }
-    if(sym==='IBOV'){
-      if(s.id==='trend')score+=18;   // IBOV segue tendência forte
-      if(s.id==='sr')score+=16;      // S/R muito forte no IBOV
-      if(s.id==='ema')score+=14;
-      if(s.id==='vwap')score+=12;
-      if(s.id==='vol')score+=14;     // volume é muito relevante no IBOV
+    if(sym==='DOGEUSDT'){
+      if(s.id==='liq'||s.id==='vol')score+=14;  // DOGE é movido por liquidez e volume
+      if(s.id==='trend')score+=10;
+    }
+    if(sym==='EURUSDT'){
+      if(s.id==='sr'||s.id==='vwap')score+=12;
+      if(s.id==='ema'||s.id==='trend')score+=10;
       if(s.id==='fvg')score+=8;
-      if(s.id==='liq')score+=10;     // varredura de liquidez comum
+    }
+    if(sym==='GBPUSDT'){
+      if(s.id==='fvg'||s.id==='bos')score+=12;
+      if(s.id==='sr'||s.id==='liq')score+=10;
     }
 
     // Bonus por timeframe
@@ -1730,13 +1794,7 @@ function renderAlerts(){
 // TRADE MONITOR
 // ================================================================
 function startTrade(sym,dir,sltp,tf){
-  // Fecha qualquer trade anterior do mesmo ativo
-  if(trade && trade.sym===sym){
-    if(tradeTimer) clearInterval(tradeTimer);
-    trade=null;
-  }
-  if(trade) return; // trade de outro ativo ativo, não inicia
-  const alertId=alerts[0]?.id;
+  if(trade)return;const alertId=alerts[0]?.id;
   trade={sym,dir,sltp,tf,cur:sltp.entry,beDone:false,trDone:false,alertId};
   const g=id=>document.getElementById(id);
   g('tm').className='tm vis';g('tm-sym').textContent=sym+' '+dir;g('tm-en').textContent=fp(sltp.entry,sltp.dec);g('tm-sl').textContent=fp(sltp.sl,sltp.dec);g('tm-tp').textContent=fp(sltp.tp,sltp.dec);g('be-lbl').textContent='BE '+fp(sltp.beLevel,sltp.dec);g('tr-lbl').textContent='Trail '+fp(sltp.trailLevel,sltp.dec);
