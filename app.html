@@ -324,7 +324,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 .multi-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .multi-title{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono)}
 .multi-status{font-family:var(--mono);font-size:9px;color:var(--t3)}
-.multi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.multi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 .mp-card{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:8px 6px;text-align:center;transition:all .2s;cursor:pointer;position:relative}
 .mp-card:hover{border-color:var(--b2)}
 .mp-card.active{border-color:var(--gbd);background:var(--gb)}
@@ -529,32 +529,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 <div class="ctrl">
   <span class="clbl">Símbolo</span>
   <select id="sel-sym" onchange="onParChange()">
-    <optgroup label="── Principais ──">
-      <option value="BTCUSDT">BTC — Bitcoin</option>
-      <option value="ETHUSDT">ETH — Ethereum</option>
-      <option value="SOLUSDT">SOL — Solana</option>
-      <option value="XRPUSDT">XRP — Ripple</option>
-      <option value="BNBUSDT">BNB</option>
-    </optgroup>
-    <optgroup label="── Mid-Cap ──">
-      <option value="ADAUSDT">ADA — Cardano</option>
-      <option value="AVAXUSDT">AVAX — Avalanche</option>
-      <option value="DOGEUSDT">DOGE — Dogecoin</option>
-      <option value="LINKUSDT">LINK — Chainlink</option>
-      <option value="DOTUSDT">DOT — Polkadot</option>
-      <option value="LTCUSDT">LTC — Litecoin</option>
-      <option value="ATOMUSDT">ATOM — Cosmos</option>
-      <option value="NEARUSDT">NEAR Protocol</option>
-      <option value="APTUSDT">APT — Aptos</option>
-      <option value="ARBUSDT">ARB — Arbitrum</option>
-      <option value="OPUSDT">OP — Optimism</option>
-      <option value="INJUSDT">INJ — Injective</option>
-      <option value="SUIUSDT">SUI — Sui</option>
-    </optgroup>
-    <optgroup label="── Ouro &amp; Forex ──">
-      <option value="PAXGUSDT">XAU/USD — Ouro</option>
-      <option value="EURUSDT">EUR/USD — Euro</option>
-    </optgroup>
+    <option value="BTCUSDT">BTC — Bitcoin</option>
+    <option value="ETHUSDT">ETH — Ethereum</option>
+    <option value="XRPUSDT">XRP — Ripple</option>
+    <option value="SUIUSDT">SUI — Sui</option>
+    <option value="PAXGUSDT">XAU/USD — Ouro</option>
+    <option value="EURUSDT">EUR/USD — Euro</option>
   </select>
   <span class="clbl">Timeframe</span>
   <select id="sel-tf" onchange="onParChange()">
@@ -675,31 +655,14 @@ const STRATS=[
   {id:'bb',    ico:'⊙',clr:'#fde68a',name:'BB Squeeze',   vname:'Bollinger Squeeze'},
 ];
 const PAIRS={
-  // Crypto principais
-  BTCUSDT:  {dec:2, type:'crypto', vname:'Bitcoin',   label:'BTC/USDT'},
-  ETHUSDT:  {dec:2, type:'crypto', vname:'Ethereum',  label:'ETH/USDT'},
-  SOLUSDT:  {dec:3, type:'crypto', vname:'Solana',    label:'SOL/USDT'},
-  XRPUSDT:  {dec:4, type:'crypto', vname:'Ripple',    label:'XRP/USDT'},
-  BNBUSDT:  {dec:2, type:'crypto', vname:'BNB',       label:'BNB/USDT'},
-  // Crypto mid-cap
-  ADAUSDT:  {dec:4, type:'crypto', vname:'Cardano',   label:'ADA/USDT'},
-  AVAXUSDT: {dec:3, type:'crypto', vname:'Avalanche', label:'AVAX/USDT'},
-  DOGEUSDT: {dec:5, type:'crypto', vname:'Dogecoin',  label:'DOGE/USDT'},
-  LINKUSDT: {dec:3, type:'crypto', vname:'Chainlink', label:'LINK/USDT'},
-  DOTUSDT:  {dec:3, type:'crypto', vname:'Polkadot',  label:'DOT/USDT'},
-  LTCUSDT:  {dec:2, type:'crypto', vname:'Litecoin',  label:'LTC/USDT'},
-  ATOMUSDT: {dec:3, type:'crypto', vname:'Cosmos',    label:'ATOM/USDT'},
-  NEARUSDT: {dec:3, type:'crypto', vname:'NEAR',      label:'NEAR/USDT'},
-  APTUSDT:  {dec:3, type:'crypto', vname:'Aptos',     label:'APT/USDT'},
-  ARBUSDT:  {dec:4, type:'crypto', vname:'Arbitrum',  label:'ARB/USDT'},
-  OPUSDT:   {dec:4, type:'crypto', vname:'Optimism',  label:'OP/USDT'},
-  INJUSDT:  {dec:3, type:'crypto', vname:'Injective', label:'INJ/USDT'},
-  SUIUSDT:  {dec:4, type:'crypto', vname:'Sui',       label:'SUI/USDT'},
-  // Ouro e Forex — confirmados na Binance
-  PAXGUSDT: {dec:2, type:'gold',   vname:'Ouro',      label:'XAU/USD'},
-  EURUSDT:  {dec:5, type:'forex',  vname:'Euro',      label:'EUR/USD'},
+  BTCUSDT:  {dec:2, type:'crypto', vname:'Bitcoin',  label:'BTC/USDT'},
+  ETHUSDT:  {dec:2, type:'crypto', vname:'Ethereum', label:'ETH/USDT'},
+  XRPUSDT:  {dec:4, type:'crypto', vname:'Ripple',   label:'XRP/USDT'},
+  SUIUSDT:  {dec:4, type:'crypto', vname:'Sui',      label:'SUI/USDT'},
+  PAXGUSDT: {dec:2, type:'gold',   vname:'Ouro',     label:'XAU/USD'},
+  EURUSDT:  {dec:5, type:'forex',  vname:'Euro',     label:'EUR/USD'},
 };
-const MULTI_PAIRS=["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT", "ADAUSDT", "AVAXUSDT", "DOGEUSDT", "LINKUSDT", "DOTUSDT", "LTCUSDT", "ATOMUSDT", "NEARUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "INJUSDT", "SUIUSDT", "PAXGUSDT", "EURUSDT"];
+const MULTI_PAIRS=["BTCUSDT", "ETHUSDT", "XRPUSDT", "SUIUSDT", "PAXGUSDT", "EURUSDT"];
 
 const ATR={
   crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006,H1:.009,H4:.018},
@@ -1717,26 +1680,12 @@ function computeScores(sym,tf){
 
     // Bonus por ativo
     const aBonus={
-      BTCUSDT: {bos:8,tline:8,fvg:6,vol:6,liq:5},
-      ETHUSDT: {fvg:8,ob:8,bos:6,choch:6},
-      SOLUSDT: {tline:9,ema:9,liq:7},
-      XRPUSDT: {liq:9,vol:9,fvg:7,bos:7},
-      BNBUSDT: {tline:8,ob:8,fvg:6},
-      ADAUSDT: {sr:8,ob:8,ema:6},
-      AVAXUSDT:{fvg:9,bos:9,tline:7},
-      DOGEUSDT:{liq:12,vol:12,tline:8},
-      LINKUSDT:{fvg:9,ob:9,bos:7},
-      DOTUSDT: {sr:8,ema:8,tline:6},
-      LTCUSDT: {sr:8,ob:8,fvg:6},
-      ATOMUSDT:{fvg:8,tline:8,ema:6},
-      NEARUSDT:{bos:9,liq:9,tline:7},
-      APTUSDT: {fvg:10,ob:10,bos:8},
-      ARBUSDT: {bos:10,fvg:10,liq:8},
-      OPUSDT:  {tline:9,bos:9,ema:7},
-      INJUSDT: {fvg:11,ob:11,liq:9},
-      SUIUSDT: {bos:10,tline:10,fvg:8},
-      PAXGUSDT:{fvg:12,ob:12,sr:9,chan:9},
-      EURUSDT: {sr:12,vwap:12,ema:10,tline:10,fvg:8},
+      BTCUSDT: {bos:12,tline:12,fvg:10,ob:10,vol:8,liq:8,sr:8},
+      ETHUSDT: {fvg:12,ob:12,bos:10,choch:10,tline:8,ema:8},
+      XRPUSDT: {liq:14,vol:14,fvg:10,bos:10,tline:8},
+      SUIUSDT: {bos:14,tline:14,fvg:12,liq:10,ob:10},
+      PAXGUSDT:{fvg:16,ob:16,sr:12,chan:12,tline:12,vwap:10},
+      EURUSDT: {sr:16,vwap:16,ema:14,tline:14,fvg:12,ob:10},
     };
     const ab=aBonus[sym];
     if(ab&&ab[s.id]) score+=ab[s.id];
