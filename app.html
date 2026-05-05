@@ -1829,10 +1829,25 @@ function updateBadges(dir,sltp,score,trendType){
 // ALERTS
 // ================================================================
 function addAlert(sym,tf,score,dir,fired,sltp,price,trendType){
+  // Verifica se já tem sinal aberto
+  const openAlerts = alerts.filter(a=>a.result==='open');
+  if(openAlerts.length>0){
+    // Só adiciona se o novo score for MAIOR que todos os abertos
+    const maxOpenScore = Math.max(...openAlerts.map(a=>a.score));
+    if(score <= maxOpenScore){
+      // Score não supera o ativo — ignora
+      showToast('tb','⚡',`${sym} ${score}pts ignorado`,`Sinal ativo tem ${maxOpenScore}pts — aguarde fechar`);
+      return false;
+    }
+    // Score maior — pode adicionar (vai competir com o ativo)
+  }
   const now=new Date();const id='al'+Date.now();
   alerts.unshift({id,sym,tf,score,dir,fired,sltp,price,trendType,time:now.toLocaleTimeString('pt-BR'),result:'open',exitPrice:null});
-  if(alerts.length>10)alerts.pop();renderAlerts();
-  document.getElementById('m-al').textContent=alerts.length;document.getElementById('alert-b').textContent=alerts.length;
+  if(alerts.length>10)alerts.pop();
+  renderAlerts();
+  document.getElementById('m-al').textContent=alerts.length;
+  document.getElementById('alert-b').textContent=alerts.length;
+  return true;
 }
 function setAlertResult(id,result,exitPrice){
   const a=alerts.find(x=>x.id===id);
