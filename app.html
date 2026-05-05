@@ -324,7 +324,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 .multi-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .multi-title{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono)}
 .multi-status{font-family:var(--mono);font-size:9px;color:var(--t3)}
-.multi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.multi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .mp-card{background:var(--bg3);border:1px solid var(--b);border-radius:8px;padding:8px 6px;text-align:center;transition:all .2s;cursor:pointer;position:relative}
 .mp-card:hover{border-color:var(--b2)}
 .mp-card.active{border-color:var(--gbd);background:var(--gb)}
@@ -530,9 +530,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   <span class="clbl">Símbolo</span>
   <select id="sel-sym" onchange="onParChange()">
     <option value="BTCUSDT">BTC — Bitcoin</option>
-    <option value="ETHUSDT">ETH — Ethereum</option>
-    <option value="XRPUSDT">XRP — Ripple</option>
-    <option value="SUIUSDT">SUI — Sui</option>
     <option value="PAXGUSDT">XAU/USD — Ouro</option>
     <option value="EURUSDT">EUR/USD — Euro</option>
   </select>
@@ -547,8 +544,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
   </select>
   <span class="tf-chip" id="tf-chip">M5 · SL ~0.12% · TP ~0.25%</span>
   <span class="clbl">Alerta &gt;</span>
-  <input type="range" min="50" max="92" value="65" id="thr">
-  <span class="tv" id="thr-v">65</span><span class="clbl">pts</span>
+  <input type="range" min="50" max="100" value="92" id="thr">
+  <span class="tv" id="thr-v">92 — 🔴 Excelente</span><span class="clbl">pts</span>
   <div class="spc"></div>
   <button class="btn pri" onclick="runAnalysis()">▶ Analisar</button>
   <button class="btn" id="btn-auto" onclick="toggleAuto()">Auto: OFF</button>
@@ -655,14 +652,11 @@ const STRATS=[
   {id:'bb',    ico:'⊙',clr:'#fde68a',name:'BB Squeeze',   vname:'Bollinger Squeeze'},
 ];
 const PAIRS={
-  BTCUSDT:  {dec:2, type:'crypto', vname:'Bitcoin',  label:'BTC/USDT'},
-  ETHUSDT:  {dec:2, type:'crypto', vname:'Ethereum', label:'ETH/USDT'},
-  XRPUSDT:  {dec:4, type:'crypto', vname:'Ripple',   label:'XRP/USDT'},
-  SUIUSDT:  {dec:4, type:'crypto', vname:'Sui',      label:'SUI/USDT'},
-  PAXGUSDT: {dec:2, type:'gold',   vname:'Ouro',     label:'XAU/USD'},
-  EURUSDT:  {dec:5, type:'forex',  vname:'Euro',     label:'EUR/USD'},
+  BTCUSDT:  {dec:2, type:'crypto', vname:'Bitcoin', label:'BTC/USDT'},
+  PAXGUSDT: {dec:2, type:'gold',   vname:'Ouro',    label:'XAU/USD'},
+  EURUSDT:  {dec:5, type:'forex',  vname:'Euro',    label:'EUR/USD'},
 };
-const MULTI_PAIRS=["BTCUSDT", "ETHUSDT", "XRPUSDT", "SUIUSDT", "PAXGUSDT", "EURUSDT"];
+const MULTI_PAIRS=['BTCUSDT','PAXGUSDT','EURUSDT'];
 
 const ATR={
   crypto:{M1:.0012,M5:.0025,M15:.0042,M30:.006,H1:.009,H4:.018},
@@ -1552,24 +1546,21 @@ function computeScores(sym,tf){
   const tfK=TF_KEY[tf]||tf;
   const londonOpen=(h>=8&&h<=12);
   const nyOpen=(h>=13&&h<=17);
-  const sessMultiplier=londonOpen&&nyOpen?1.3:londonOpen||nyOpen?1.15:0.9;
+  const sessMultiplier=londonOpen&&nyOpen?1.2:londonOpen||nyOpen?1.08:0.88;
 
   // ================================================================
-  // ANÁLISE DE LINHA DE TENDÊNCIA REAL com base nos candles
+  // ANÁLISE DE LINHA DE TENDÊNCIA REAL
   // ================================================================
-  let tlineScore=35, tlineDir='neutro', tlineTouch=0, channelScore=35;
+  let tlineScore=25, tlineDir='neutro', tlineTouch=0, channelScore=25;
 
   if(candles && candles.length>=20){
-    const c=candles.slice(-30); // últimos 30 candles
+    const c=candles.slice(-40);
     const n=c.length;
-
-    // Máximas e mínimas
     const highs=c.map(x=>x.h);
     const lows=c.map(x=>x.l);
     const closes=c.map(x=>x.c);
 
-    // Detecta toques na linha de tendência de baixa (máximas descendentes)
-    // Pega as 3 últimas máximas relevantes
+    // Picos e vales
     let highPeaks=[];
     for(let i=2;i<n-1;i++){
       if(highs[i]>highs[i-1]&&highs[i]>highs[i+1]) highPeaks.push({i,v:highs[i]});
@@ -1579,147 +1570,133 @@ function computeScores(sym,tf){
       if(lows[i]<lows[i-1]&&lows[i]<lows[i+1]) lowTroughs.push({i,v:lows[i]});
     }
 
-    // Linha de tendência de BAIXA — máximas decrescentes
+    // LTB — máximas descendentes
     if(highPeaks.length>=2){
       const p1=highPeaks[highPeaks.length-2];
       const p2=highPeaks[highPeaks.length-1];
-      if(p2.v<p1.v){ // máximas descendo
+      if(p2.v<p1.v){
         const slope=(p2.v-p1.v)/(p2.i-p1.i);
         const lineAtEnd=p2.v+slope*(n-1-p2.i);
         const lastHigh=highs[n-1];
         const dist=Math.abs(lastHigh-lineAtEnd)/lineAtEnd;
-
-        // Preço tocando a linha de tendência de baixa (dentro de 0.3%)
         if(dist<0.003){
           tlineTouch++;
-          tlineScore=78+tlineTouch*8; // mais toques = mais confiança
-          tlineDir='SELL'; // tocou na LTB = venda
-          // Bônus extra se é o 3º toque
+          tlineScore=72+tlineTouch*6;
+          tlineDir='SELL';
           if(highPeaks.length>=3){
             const p0=highPeaks[highPeaks.length-3];
-            if(p0.v>p1.v) tlineScore=Math.min(96, tlineScore+12);
+            if(p0.v>p1.v) tlineScore=Math.min(94,tlineScore+14); // 3° toque
           }
         }
       }
     }
 
-    // Linha de tendência de ALTA — mínimas crescentes
-    if(lowTroughs.length>=2 && tlineDir==='neutro'){
+    // LTA — mínimas ascendentes
+    if(lowTroughs.length>=2&&tlineDir==='neutro'){
       const t1=lowTroughs[lowTroughs.length-2];
       const t2=lowTroughs[lowTroughs.length-1];
-      if(t2.v>t1.v){ // mínimas subindo
+      if(t2.v>t1.v){
         const slope=(t2.v-t1.v)/(t2.i-t1.i);
         const lineAtEnd=t2.v+slope*(n-1-t2.i);
         const lastLow=lows[n-1];
         const dist=Math.abs(lastLow-lineAtEnd)/lineAtEnd;
-
         if(dist<0.003){
           tlineTouch++;
-          tlineScore=75+tlineTouch*8;
-          tlineDir='BUY'; // tocou na LTA = compra
+          tlineScore=70+tlineTouch*6;
+          tlineDir='BUY';
           if(lowTroughs.length>=3){
             const t0=lowTroughs[lowTroughs.length-3];
-            if(t0.v<t1.v) tlineScore=Math.min(96, tlineScore+12);
+            if(t0.v<t1.v) tlineScore=Math.min(94,tlineScore+14); // 3° toque
           }
         }
       }
     }
 
-    // Canal — distância entre LTA e LTB
+    // Canal
     if(highPeaks.length>=2&&lowTroughs.length>=2){
-      const avgHigh=(highs.slice(-10).reduce((a,b)=>a+b,0)/10);
-      const avgLow=(lows.slice(-10).reduce((a,b)=>a+b,0)/10);
-      const channelWidth=(avgHigh-avgLow)/avgLow;
-      // Canal bem definido (entre 0.5% e 4%)
-      if(channelWidth>0.005&&channelWidth<0.04){
-        channelScore=68+Math.random()*15;
-        // Preço próximo ao topo do canal = SELL, fundo = BUY
+      const avgHigh=highs.slice(-10).reduce((a,b)=>a+b,0)/10;
+      const avgLow=lows.slice(-10).reduce((a,b)=>a+b,0)/10;
+      const cw=(avgHigh-avgLow)/avgLow;
+      if(cw>0.005&&cw<0.04){
+        channelScore=60+Math.random()*14;
         const lastClose=closes[n-1];
         const pos=(lastClose-avgLow)/(avgHigh-avgLow);
-        if(pos>0.85) channelScore=Math.min(96,channelScore+10); // topo = SELL forte
-        if(pos<0.15) channelScore=Math.min(96,channelScore+10); // fundo = BUY forte
+        if(pos>0.85) channelScore=Math.min(92,channelScore+12);
+        if(pos<0.15) channelScore=Math.min(92,channelScore+12);
       }
     }
   }
 
   // ================================================================
-  // SCORES DAS OUTRAS ESTRATÉGIAS
+  // SCORES — base mais baixa, exige confluência para chegar alto
   // ================================================================
   const res={};
   STRATS.forEach(s=>{
-    // Linha de tendência — usa análise real dos candles
-    if(s.id==='tline'){
-      res[s.id]={score:Math.round(Math.min(96,Math.max(10,tlineScore)))};
-      return;
-    }
-    if(s.id==='chan'){
-      res[s.id]={score:Math.round(Math.min(96,Math.max(10,channelScore)))};
-      return;
-    }
+    if(s.id==='tline'){res[s.id]={score:Math.round(Math.min(94,Math.max(8,tlineScore)))};return;}
+    if(s.id==='chan'){res[s.id]={score:Math.round(Math.min(94,Math.max(8,channelScore)))};return;}
 
-    // Demais estratégias — baseadas em padrões técnicos simulados com peso real
-    let score=30+Math.random()*45;
+    // Base MENOR — mais difícil de atingir sem confluência
+    let score=20+Math.random()*38;
     score*=sessMultiplier;
 
-    // Tier 1 — boost maior
-    if(s.id==='fvg')   score+=8+Math.random()*14;
-    if(s.id==='ob')    score+=7+Math.random()*12;
-    if(s.id==='bos')   score+=8+Math.random()*14;
-    if(s.id==='ema')   score+=6+Math.random()*12;
+    // Tier 1 — boost forte mas não garante sozinho
+    if(s.id==='fvg')   score+=10+Math.random()*16;
+    if(s.id==='ob')    score+=9+Math.random()*14;
+    if(s.id==='bos')   score+=10+Math.random()*16;
+    if(s.id==='ema')   score+=8+Math.random()*13;
 
     // Tier 2
-    if(s.id==='liq')   score+=4+Math.random()*8;
-    if(s.id==='vwap')  score+=3+Math.random()*7;
-    if(s.id==='sr')    score+=4+Math.random()*8;
-    if(s.id==='choch') score+=3+Math.random()*7;
-    if(s.id==='vol')   score+=3+Math.random()*6;
+    if(s.id==='liq')   score+=5+Math.random()*9;
+    if(s.id==='vwap')  score+=4+Math.random()*8;
+    if(s.id==='sr')    score+=5+Math.random()*9;
+    if(s.id==='choch') score+=4+Math.random()*8;
+    if(s.id==='vol')   score+=4+Math.random()*7;
 
-    // Tier 3
+    // Tier 3 — pouco impacto
     if(s.id==='rsi')   score+=1+Math.random()*5;
     if(s.id==='bb')    score+=1+Math.random()*4;
 
-    // Bonus por ativo
+    // Bonus por ativo — bem calibrados para 3 pares
     const aBonus={
-      BTCUSDT: {bos:12,tline:12,fvg:10,ob:10,vol:8,liq:8,sr:8},
-      ETHUSDT: {fvg:12,ob:12,bos:10,choch:10,tline:8,ema:8},
-      XRPUSDT: {liq:14,vol:14,fvg:10,bos:10,tline:8},
-      SUIUSDT: {bos:14,tline:14,fvg:12,liq:10,ob:10},
-      PAXGUSDT:{fvg:16,ob:16,sr:12,chan:12,tline:12,vwap:10},
-      EURUSDT: {sr:16,vwap:16,ema:14,tline:14,fvg:12,ob:10},
+      BTCUSDT: {bos:14,tline:14,fvg:12,ob:12,vol:10,liq:10,sr:9,ema:8},
+      PAXGUSDT:{fvg:18,ob:18,sr:15,chan:15,tline:14,vwap:12,ema:10},
+      EURUSDT: {sr:18,vwap:18,ema:16,tline:15,fvg:13,ob:11,choch:10},
     };
     const ab=aBonus[sym];
     if(ab&&ab[s.id]) score+=ab[s.id];
 
-    // Bonus timeframe
-    if(tfK==='M15'||tfK==='M30'){if(s.id==='fvg'||s.id==='ob') score+=5;}
-    if(tfK==='H1'||tfK==='H4'){if(s.id==='sr'||s.id==='ob'||s.id==='tline') score+=7;}
+    // Timeframe
+    if(tfK==='M15'||tfK==='M30'){if(s.id==='fvg'||s.id==='ob') score+=6;}
+    if(tfK==='H1'||tfK==='H4'){if(s.id==='sr'||s.id==='ob'||s.id==='tline') score+=8;}
 
-    res[s.id]={score:Math.round(Math.min(96,Math.max(10,score)))};
+    res[s.id]={score:Math.round(Math.min(94,Math.max(8,score)))};
   });
 
   // ================================================================
-  // DIREÇÃO — baseada nas estratégias mais fortes
+  // DIREÇÃO — prioriza linha de tendência detectada
   // ================================================================
-  const tier1=['fvg','ob','bos','ema','tline'];
-  const t1avg=tier1.reduce((a,k)=>a+(res[k]?.score||50),0)/tier1.length;
-
-  // Se linha de tendência detectou direção real, prioriza ela
   let dir;
-  if(tlineDir!=='neutro'&&tlineScore>=72){
-    dir=tlineDir; // LT real detectada — usa a direção dela
+  if(tlineDir!=='neutro'&&tlineScore>=70){
+    dir=tlineDir;
   } else {
-    const bias=t1avg>68?0.68:t1avg>58?0.58:0.52;
+    const tier1=['fvg','ob','bos','ema','tline'];
+    const t1avg=tier1.reduce((a,k)=>a+(res[k]?.score||40),0)/tier1.length;
+    const bias=t1avg>65?0.66:t1avg>55?0.56:0.52;
     dir=Math.random()<bias?'BUY':'SELL';
   }
 
   // ================================================================
-  // BÔNUS DE CONFLUÊNCIA — quanto mais estratégias fortes juntas, maior o score
+  // SINAIS INDIVIDUAIS com thresholds mais altos
   // ================================================================
-  const thresholds={fvg:58,ob:58,bos:56,ema:56,tline:54,liq:60,vwap:60,sr:60,choch:64,vol:62,rsi:68,chan:64,bb:70};
+  const thresholds={
+    fvg:62, ob:62, bos:60, ema:60, tline:58,
+    liq:64, vwap:64, sr:64, choch:68, vol:65,
+    rsi:72, chan:66, bb:74
+  };
   let confluenceCount=0;
   Object.keys(res).forEach(k=>{
     const sc=res[k].score;
-    const thr=thresholds[k]||60;
+    const thr=thresholds[k]||64;
     if(sc>=thr){
       res[k].signal=Math.random()<0.82?dir:(dir==='BUY'?'SELL':'BUY');
       confluenceCount++;
@@ -1728,28 +1705,39 @@ function computeScores(sym,tf){
     }
   });
 
-  // Bônus de confluência no score global
-  const confluenceBonus=confluenceCount>=8?15:confluenceCount>=6?10:confluenceCount>=4?5:0;
+  // ================================================================
+  // BÔNUS DE CONFLUÊNCIA — exige MUITAS estratégias juntas para score alto
+  // Sem confluência forte é impossível chegar a 92+
+  // ================================================================
+  const confluenceBonus=
+    confluenceCount>=10?22:
+    confluenceCount>=8?16:
+    confluenceCount>=6?10:
+    confluenceCount>=4?4:0;
 
-  // Score global ponderado + bônus confluência
-  const W={fvg:2.2,ob:2.0,bos:2.0,ema:1.8,tline:2.5,liq:1.3,vwap:1.1,sr:1.3,choch:1.4,vol:1.1,rsi:0.6,chan:1.8,bb:0.5};
+  // Penaliza se poucas estratégias confluindo
+  const confluencePenalty=
+    confluenceCount<=2?-15:
+    confluenceCount<=3?-8:0;
+
+  // Score global ponderado
+  const W={fvg:2.4,ob:2.2,bos:2.2,ema:2.0,tline:2.6,liq:1.4,vwap:1.3,sr:1.5,choch:1.5,vol:1.2,rsi:0.5,chan:1.9,bb:0.4};
   let wSum=0,wTot=0;
   Object.keys(res).forEach(k=>{
     const w=W[k]||1;
     wSum+=res[k].score*w;
     wTot+=w;
   });
-  const global=Math.min(96,Math.round(wSum/wTot+confluenceBonus));
+  const global=Math.min(98,Math.max(5,Math.round(wSum/wTot+confluenceBonus+confluencePenalty)));
 
-  // Tipo de tendência
   let trendType='';
-  if(tlineDir!=='neutro'&&tlineScore>=72){
+  if(tlineDir!=='neutro'&&tlineScore>=70){
     trendType=tlineDir==='BUY'?`↗ LTA ${tlineTouch+2}° toque`:`↘ LTB ${tlineTouch+2}° toque`;
   } else if(res.tline?.score>65){
     trendType=dir==='BUY'?'↗ Alta (HH+HL)':'↘ Baixa (LH+LL)';
-  } else if(res.chan?.score>65){
+  } else if(res.chan?.score>68){
     trendType=dir==='BUY'?'⫶ Canal Asc.':'⫶ Canal Desc.';
-  } else if(res.bos?.score>68&&res.choch?.score>60){
+  } else if(res.bos?.score>70&&res.choch?.score>62){
     trendType=dir==='BUY'?'↗ Reversão Alta':'↘ Reversão Baixa';
   }
 
@@ -1804,6 +1792,13 @@ async function runAnalysis(){
       closeBan('be');closeBan('tr');
     }
     // COBRA CREDITO APENAS quando há sinal confirmado
+    // Verifica se sinal seria aceito ANTES de cobrar crédito
+    const openAlerts=alerts.filter(a=>a.result==='open');
+    const maxOpenScore=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
+    if(openAlerts.length>0&&global<=maxOpenScore){
+      showToast('tb','⚡',sym+' '+global+'pts ignorado','Sinal ativo tem '+maxOpenScore+'pts');
+      return;
+    }
     const ok=await consumeCredit();
     if(!ok)return;
     const sltp=calcSLTP(sym,dir,global,tf,price);
