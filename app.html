@@ -1804,12 +1804,18 @@ async function runAnalysis(){
     const sltp=calcSLTP(sym,dir,global,tf,price);
     overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
     drawChart();updateBadges(dir,sltp,global,trendType);
-    addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
+    const added=addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
+    if(!added) return; // sinal ignorado — não abre monitor nem cobra
     if(soundOn)playBeep(global,'signal');
     showToast('ts','⚡',`Setup ${global}pts — ${sym} ${dir}`,`ENT ${fp(sltp.entry,sltp.dec)} · SL ${fp(sltp.sl,sltp.dec)} · TP ${fp(sltp.tp,sltp.dec)} · RR 1:${sltp.rr.toFixed(1)}`);
     // NARRAÇÃO DO SINAL
     narrateSignal(sym,dir,global,fired,sltp,trendType);
     startTrade(sym,dir,sltp,tfK);
+    // Abre o monitor de trade automaticamente no primeiro sinal
+    setTimeout(()=>{
+      const firstAlert=alerts.find(a=>a.result==='open');
+      if(firstAlert) openTradeMonitor(firstAlert);
+    },500);
     refreshFocusIfOpen();
   }
 }
@@ -1911,6 +1917,28 @@ function loadAlertOnChart(id){
     const dir=a.dir==='BUY'?'compra':'venda';
     speak(`Sinal de ${dir} carregado. Entrada em ${fpVoice(s.entry,s.dec)}. Stop em ${fpVoice(s.sl,s.dec)}. Alvo em ${fpVoice(s.tp,s.dec)}.`,true);
   }
+}
+
+
+function openTradeMonitor(a){
+  if(!a) return;
+  const s=a.sltp;
+  overlay={entry:s.entry,sl:s.sl,tp:s.tp,be:s.beLevel,trail:s.trailLevel||null,isBuy:s.isBuy,dec:s.dec};
+  drawChart();
+  const g=id=>document.getElementById(id);
+  g('tm').className='tm vis';
+  g('tm-sym').textContent=a.sym+' '+a.dir;
+  g('tm-en').textContent=fp(s.entry,s.dec);
+  g('tm-sl').textContent=fp(s.sl,s.dec);
+  g('tm-tp').textContent=fp(s.tp,s.dec);
+  if(g('be-lbl')) g('be-lbl').textContent='BE '+fp(s.beLevel,s.dec);
+  if(g('tr-lbl')) g('tr-lbl').textContent='Trail '+fp(s.trailLevel,s.dec);
+  const cur=LIVE[a.sym]?.price||s.entry;
+  const pnl=s.isBuy?(cur-s.entry):(s.entry-cur);
+  const pe=g('tm-pnl');
+  if(pe){pe.textContent=(pnl>=0?'+':'')+fa(Math.abs(pnl),s.dec);pe.className='tm-v '+(pnl>0?'g':pnl<0?'r':'');}
+  document.querySelectorAll('.ac.active-overlay').forEach(el=>el.classList.remove('active-overlay'));
+  document.getElementById(a.id)?.classList.add('active-overlay');
 }
 
 function renderAlerts(){
