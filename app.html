@@ -1798,9 +1798,6 @@ async function runAnalysis(){
   // ================================================================
   const sltp=calcSLTP(sym,dir,global,tf,price);
 
-  // Monta texto de análise completo
-  const confNames=STRATS.filter(s=>res[s.id]?.signal!=='neutro'&&res[s.id]?.score>=60).map(s=>s.name);
-  const setupDesc=buildSetupDesc(res,dir,global,trendType,confNames);
 
   // Plota overlay SEMPRE (mesmo score baixo, mostra onde seriam os níveis)
   overlay={
@@ -1813,8 +1810,6 @@ async function runAnalysis(){
   drawChart();
   updateBadges(dir,sltp,global,trendType);
 
-  // Mostra painel de análise no gráfico
-  showAnalysisPanel(sym,dir,global,thr,sltp,setupDesc,confNames,trendType,price);
 
   // ================================================================
   // SÓ GERA SINAL se score >= threshold
@@ -1857,112 +1852,9 @@ async function runAnalysis(){
 
 // ================================================================
 // ANÁLISE TEXTUAL — descreve o setup
-// ================================================================
-function buildSetupDesc(res,dir,global,trendType,confNames){
-  const isBuy=dir==='BUY';
-  const lines=[];
 
-  // Qualidade do setup
-  if(global>=92) lines.push('🔴 Setup EXCELENTE — confluência muito forte');
-  else if(global>=85) lines.push('🟡 Setup MUITO BOM — confluência forte');
-  else if(global>=75) lines.push('🟢 Setup BOM — aguardando mais confirmações');
-  else if(global>=65) lines.push('🔵 Setup MODERADO — entrada de menor qualidade');
-  else lines.push('⚪ Setup FRACO — aguardar melhor momento');
 
-  // Direção
-  lines.push(isBuy?'📈 Direção: COMPRA (BUY)':'📉 Direção: VENDA (SELL)');
 
-  // Tendência
-  if(trendType) lines.push('📐 Tendência: '+trendType);
-
-  // Estratégias confirmadas
-  if(res.tline?.score>=65) lines.push('📐 Linha de tendência detectada');
-  if(res.ob?.score>=65) lines.push('◈ Order Block ativo na região');
-  if(res.fvg?.score>=65) lines.push('▣ Fair Value Gap no caminho');
-  if(res.bos?.score>=65) lines.push('↯ Break of Structure confirmado');
-  if(res.sr?.score>=65) lines.push('⊟ Suporte/Resistência HTF relevante');
-  if(res.vwap?.score>=65) lines.push('◎ VWAP como referência');
-  if(res.ema?.score>=65) lines.push('≈ EMA Stack alinhada com o trade');
-  if(res.liq?.score>=65) lines.push('◉ Liquidez varrida — preço livre');
-  if(res.choch?.score>=65) lines.push('⟳ CHoCH — mudança de estrutura');
-
-  return lines;
-}
-
-// ================================================================
-// PAINEL DE ANÁLISE NO GRÁFICO
-// ================================================================
-function showAnalysisPanel(sym,dir,global,thr,sltp,desc,confNames,trendType,price){
-  // Remove painel anterior se existir
-  const old=document.getElementById('analysis-panel');
-  if(old) old.remove();
-
-  const confirmed=global>=thr;
-  const isBuy=dir==='BUY';
-  const dec=sltp.dec;
-
-  const panel=document.createElement('div');
-  panel.id='analysis-panel';
-  panel.style.cssText=`
-    position:absolute;top:8px;left:8px;z-index:20;
-    background:rgba(10,12,16,.93);
-    border:1px solid ${confirmed?'rgba(255,215,0,.5)':'rgba(255,255,255,.12)'};
-    border-radius:12px;padding:14px 16px;
-    font-family:'DM Mono',monospace;font-size:10px;
-    max-width:280px;backdrop-filter:blur(8px);
-    box-shadow:0 8px 32px rgba(0,0,0,.5);
-  `;
-
-  const scoreColor=global>=92?'#ff4d6a':global>=85?'#ffb547':global>=75?'#00e896':'#7a8099';
-  const dirColor=isBuy?'#00e896':'#ff4d6a';
-  const dirIco=isBuy?'▲ BUY':'▼ SELL';
-
-  panel.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:700;color:#e8eaf0">${PAIRS[sym]?.label||sym}</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="background:${dirColor}22;color:${dirColor};border:1px solid ${dirColor}44;padding:2px 8px;border-radius:5px;font-size:9px;font-weight:700">${dirIco}</span>
-        <span style="font-size:18px;font-weight:700;color:${scoreColor}">${global}pts</span>
-        <button onclick="document.getElementById('analysis-panel').remove()" style="background:none;border:none;color:#4a5068;cursor:pointer;font-size:14px;padding:0 2px">✕</button>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
-      <div style="background:#111318;border-radius:6px;padding:6px 8px">
-        <div style="color:#4a5068;font-size:8px;text-transform:uppercase;margin-bottom:2px">Entrada</div>
-        <div style="color:#4d9fff;font-size:11px;font-weight:600">${fp(sltp.entry,dec)}</div>
-      </div>
-      <div style="background:#111318;border-radius:6px;padding:6px 8px">
-        <div style="color:#4a5068;font-size:8px;text-transform:uppercase;margin-bottom:2px">Stop Loss</div>
-        <div style="color:#ff4d6a;font-size:11px;font-weight:600">${fp(sltp.sl,dec)}</div>
-      </div>
-      <div style="background:#111318;border-radius:6px;padding:6px 8px">
-        <div style="color:#4a5068;font-size:8px;text-transform:uppercase;margin-bottom:2px">Take Profit</div>
-        <div style="color:#00e896;font-size:11px;font-weight:600">${fp(sltp.tp,dec)}</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
-      <div style="background:#111318;border-radius:6px;padding:6px 8px">
-        <div style="color:#4a5068;font-size:8px;margin-bottom:2px">Breakeven</div>
-        <div style="color:#00e5ff;font-size:10px">${fp(sltp.beLevel,dec)}</div>
-      </div>
-      <div style="background:#111318;border-radius:6px;padding:6px 8px">
-        <div style="color:#4a5068;font-size:8px;margin-bottom:2px">RR / SL%</div>
-        <div style="color:#e8eaf0;font-size:10px">1:${sltp.rr.toFixed(1)} · ${(Math.abs(sltp.sl-sltp.entry)/sltp.entry*100).toFixed(2)}%</div>
-      </div>
-    </div>
-    <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:8px">
-      ${desc.map(l=>`<div style="color:#7a8099;margin-bottom:3px;font-size:9px">${l}</div>`).join('')}
-    </div>
-    ${confirmed?`<div style="margin-top:8px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);border-radius:6px;padding:6px 8px;text-align:center;color:#ffd700;font-size:9px;font-weight:600">⚡ SINAL CONFIRMADO — Entrada válida</div>`:`<div style="margin-top:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:6px 8px;text-align:center;color:#7a8099;font-size:9px">Score ${global}pts — aguardando ${thr}pts para confirmar</div>`}
-  `;
-
-  // Insere no container do gráfico
-  const chartWrap=document.querySelector('.chart-panel')||document.getElementById('chart-wrap');
-  if(chartWrap){
-    chartWrap.style.position='relative';
-    chartWrap.appendChild(panel);
-  }
-}
 function updateBadges(dir,sltp,score,trendType){
   const d=sltp.dec;let h=`<span class="cbadge ${dir==='BUY'?'cb-dir-b':'cb-dir-s'}">${dir}</span>`;
   h+=`<span class="cbadge cb-sc">Score ${score}pts</span>`;h+=`<span class="cbadge cb-ent">ENT ${fp(sltp.entry,d)}</span>`;h+=`<span class="cbadge cb-sl">SL ${fp(sltp.sl,d)}</span>`;h+=`<span class="cbadge cb-tp">TP ${fp(sltp.tp,d)}</span>`;h+=`<span class="cbadge cb-be">BE ${fp(sltp.beLevel,d)}</span>`;
