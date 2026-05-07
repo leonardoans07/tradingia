@@ -2332,9 +2332,29 @@ function renderHistory(){
 // ================================================================
 function clearAll(){alerts=[];renderAlerts();document.getElementById('m-al').textContent=0;document.getElementById('alert-b').textContent=0;}
 function toggleAuto(){
-  autoMode=!autoMode;const btn=document.getElementById('btn-auto');
-  if(autoMode){btn.textContent='Auto: ON';btn.className='btn aon';document.getElementById('live-lbl').textContent='Análise automática';autoTimer=setInterval(runAnalysis,12000);runAnalysis();}
-  else{btn.textContent='Auto: OFF';btn.className='btn';document.getElementById('live-lbl').textContent='Preços reais Binance';clearInterval(autoTimer);}
+  autoMode=!autoMode;
+  const btn=document.getElementById('btn-auto');
+  if(autoMode){
+    btn.textContent='Auto: ON';
+    btn.className='btn aon';
+    document.getElementById('live-lbl').textContent='Análise automática';
+    // USA runAutoScan — só dispara se >= threshold
+    const doScan=async()=>{
+      const sym=document.getElementById('sel-sym').value;
+      const tf=document.getElementById('sel-tf').value;
+      const tfK=TF_KEY[tf]||'M5';
+      const thr=parseInt(document.getElementById('thr').value);
+      if(!LIVE[sym]?.ready||LIVE[sym].price===0) await fetchAllPrices();
+      await runAutoScan(sym,tfK,tf,thr);
+    };
+    autoTimer=setInterval(doScan,12000);
+    // NÃO roda imediatamente ao ligar — espera o próximo ciclo
+  } else {
+    btn.textContent='Auto: OFF';
+    btn.className='btn';
+    document.getElementById('live-lbl').textContent='Preços reais Binance';
+    clearInterval(autoTimer);
+  }
 }
 
 // ================================================================
