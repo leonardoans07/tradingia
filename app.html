@@ -1541,202 +1541,142 @@ function updateStratMini(res,thr){
 // ================================================================
 // ANÁLISE
 // ================================================================
-function computeScores(sym,tf){
-  const h=new Date().getHours();
-  const tfK=TF_KEY[tf]||tf;
-  const londonOpen=(h>=8&&h<=12);
-  const nyOpen=(h>=13&&h<=17);
-  // Sessão multiplica qualidade dos sinais
-  const sessM=londonOpen&&nyOpen?1.18:londonOpen||nyOpen?1.08:0.85;
+function computeScores(sym, tf){
+  const h = new Date().getHours();
+  const tfK = TF_KEY[tf] || tf;
+  const tfWeight = {'M1':0.70,'M5':0.85,'M15':0.95,'M30':1.05,'H1':1.15,'H4':1.20}[tfK] || 0.85;
+  const london = h>=8&&h<=12, ny = h>=13&&h<=17;
+  const sessQ = london&&ny?1.15:london||ny?1.06:0.88;
 
-  // ================================================================
-  // LINHA DE TENDÊNCIA — análise real dos candles
-  // ================================================================
-  let tlineScore=15, tlineDir='neutro', tlineTouch=0, channelScore=15;
+  let microTrend='neutro', trendStrength=0;
+  let tlineScore=10, tlineDir='neutro', tlineTouches=0, chanScore=10;
 
-  if(candles&&candles.length>=20){
-    const c=candles.slice(-50);
-    const n=c.length;
-    const highs=c.map(x=>x.h);
-    const lows=c.map(x=>x.l);
-    const closes=c.map(x=>x.c);
+  if(candles&&candles.length>=10){
+    const c=candles.slice(-40), n=c.length;
+    const cls=c.map(x=>x.c), hs=c.map(x=>x.h), ls=c.map(x=>x.l);
+    const ema=(arr,p)=>{const k=2/(p+1);let e=arr[0];for(let i=1;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e;};
+    const ema9=ema(cls,9), ema21=ema(cls,21), last=cls[n-1];
 
-    // Picos de alta/baixa
+    // Micro-tendência pelo EMA
+    if(ema9>ema21&&last>ema9){
+      microTrend='bull';
+      trendStrength=Math.min(100,50+(ema9-ema21)/ema21*5000);
+    } else if(ema9<ema21&&last<ema9){
+      microTrend='bear';
+      trendStrength=Math.min(100,50+(ema21-ema9)/ema21*5000);
+    } else {
+      const slope=(cls[n-1]-cls[Math.max(0,n-6)])/cls[Math.max(0,n-6)];
+      microTrend=slope>0.001?'bull':slope<-0.001?'bear':'neutro';
+      trendStrength=25;
+    }
+
+    // Linha de tendência
     let peaks=[], troughs=[];
     for(let i=2;i<n-1;i++){
-      if(highs[i]>highs[i-1]&&highs[i]>highs[i+1]) peaks.push({i,v:highs[i]});
-      if(lows[i]<lows[i-1]&&lows[i]<lows[i+1]) troughs.push({i,v:lows[i]});
+      if(hs[i]>hs[i-1]&&hs[i]>hs[i+1]) peaks.push({i,v:hs[i]});
+      if(ls[i]<ls[i-1]&&ls[i]<ls[i+1]) troughs.push({i,v:ls[i]});
     }
-
-    // LTB — máximas decrescentes (pelo menos 2 picos)
     if(peaks.length>=2){
-      const p1=peaks[peaks.length-2], p2=peaks[peaks.length-1];
-      if(p2.v<p1.v*0.999){ // descendo pelo menos 0.1%
+      const p1=peaks[peaks.length-2],p2=peaks[peaks.length-1];
+      if(p2.v<p1.v*0.9995){
         const slope=(p2.v-p1.v)/(p2.i-p1.i);
         const lineNow=p2.v+slope*(n-1-p2.i);
-        const dist=Math.abs(highs[n-1]-lineNow)/lineNow;
-        if(dist<0.003){ // dentro de 0.3% da linha
-          tlineTouch++;
-          tlineScore=65+tlineTouch*8;
-          tlineDir='SELL';
-          // 3° toque na LTB = muito mais confiável
-          if(peaks.length>=3){
-            const p0=peaks[peaks.length-3];
-            if(p0.v>p1.v) tlineScore=Math.min(90,tlineScore+18);
-          }
+        if(Math.abs(hs[n-1]-lineNow)/lineNow<0.003){
+          tlineTouches++;tlineScore=60+tlineTouches*8;tlineDir='SELL';
+          if(peaks.length>=3&&peaks[peaks.length-3].v>p1.v) tlineScore=Math.min(88,tlineScore+16);
         }
       }
     }
-
-    // LTA — mínimas crescentes
     if(troughs.length>=2&&tlineDir==='neutro'){
-      const t1=troughs[troughs.length-2], t2=troughs[troughs.length-1];
-      if(t2.v>t1.v*1.001){ // subindo pelo menos 0.1%
+      const t1=troughs[troughs.length-2],t2=troughs[troughs.length-1];
+      if(t2.v>t1.v*1.0005){
         const slope=(t2.v-t1.v)/(t2.i-t1.i);
         const lineNow=t2.v+slope*(n-1-t2.i);
-        const dist=Math.abs(lows[n-1]-lineNow)/lineNow;
-        if(dist<0.003){
-          tlineTouch++;
-          tlineScore=63+tlineTouch*8;
-          tlineDir='BUY';
-          if(troughs.length>=3){
-            const t0=troughs[troughs.length-3];
-            if(t0.v<t1.v) tlineScore=Math.min(90,tlineScore+18);
-          }
+        if(Math.abs(ls[n-1]-lineNow)/lineNow<0.003){
+          tlineTouches++;tlineScore=58+tlineTouches*8;tlineDir='BUY';
+          if(troughs.length>=3&&troughs[troughs.length-3].v<t1.v) tlineScore=Math.min(88,tlineScore+16);
         }
       }
     }
-
-    // Canal de preço
     if(peaks.length>=2&&troughs.length>=2){
-      const avgH=highs.slice(-15).reduce((a,b)=>a+b,0)/15;
-      const avgL=lows.slice(-15).reduce((a,b)=>a+b,0)/15;
+      const avgH=hs.slice(-12).reduce((a,b)=>a+b,0)/12;
+      const avgL=ls.slice(-12).reduce((a,b)=>a+b,0)/12;
       const cw=(avgH-avgL)/avgL;
-      if(cw>0.004&&cw<0.05){
-        channelScore=52+Math.random()*16;
-        const pos=(closes[n-1]-avgL)/(avgH-avgL);
-        if(pos>0.88||pos<0.12) channelScore=Math.min(88,channelScore+16);
+      if(cw>0.003&&cw<0.05){
+        chanScore=45+Math.random()*20;
+        const pos=(last-avgL)/(avgH-avgL);
+        if(pos>0.85||pos<0.15) chanScore=Math.min(85,chanScore+18);
       }
     }
   }
 
-  // ================================================================
-  // ENGINE PRINCIPAL — scores rigorosos
-  // Base BAIXA — precisa de muita confirmação para chegar alto
-  // ================================================================
+  // Direção — respeita micro-tendência SEMPRE
+  let dir;
+  if(tlineDir!=='neutro'&&tlineScore>=62){
+    if(tlineDir==='SELL'&&microTrend!=='bull') dir='SELL';
+    else if(tlineDir==='BUY'&&microTrend!=='bear') dir='BUY';
+    else dir=microTrend==='bull'?'BUY':microTrend==='bear'?'SELL':(Math.random()>0.5?'BUY':'SELL');
+  } else {
+    dir=microTrend==='bull'?'BUY':microTrend==='bear'?'SELL':(Math.random()>0.5?'BUY':'SELL');
+  }
+
+  // Scores por estratégia
   const res={};
   STRATS.forEach(s=>{
     if(s.id==='tline'){res[s.id]={score:Math.round(Math.min(92,Math.max(5,tlineScore)))};return;}
-    if(s.id==='chan'){res[s.id]={score:Math.round(Math.min(92,Math.max(5,channelScore)))};return;}
+    if(s.id==='chan'){res[s.id]={score:Math.round(Math.min(88,Math.max(5,chanScore)))};return;}
 
-    // Base muito baixa — raramente chega alto sem confluência
-    let score=10+Math.random()*30;
-    score*=sessM;
+    let score=15+Math.random()*28;
+    score*=sessQ*tfWeight;
 
-    // Tier 1 — boost significativo mas não garante sozinho
-    if(s.id==='fvg')   score+=12+Math.random()*18;
-    if(s.id==='ob')    score+=11+Math.random()*16;
-    if(s.id==='bos')   score+=12+Math.random()*18;
-    if(s.id==='ema')   score+=10+Math.random()*14;
+    if(s.id==='fvg'){score+=14+Math.random()*18;if(trendStrength>60)score+=8;}
+    if(s.id==='ob'){score+=13+Math.random()*17;if(trendStrength>50)score+=7;}
+    if(s.id==='bos'){score+=14+Math.random()*18;if(trendStrength>55)score+=9;}
+    if(s.id==='ema'){const eb=trendStrength>70?20:trendStrength>50?12:4;score+=10+eb+Math.random()*12;}
+    if(s.id==='liq'){score+=7+Math.random()*11;if(trendStrength>45)score+=5;}
+    if(s.id==='vwap')score+=6+Math.random()*10;
+    if(s.id==='sr'){score+=7+Math.random()*11;if(tfK==='H1'||tfK==='H4')score+=10;if(tfK==='M30')score+=6;}
+    if(s.id==='choch'){score+=5+Math.random()*9;if(trendStrength<30)score+=8;}
+    if(s.id==='vol')score+=5+Math.random()*9;
+    if(s.id==='rsi')score+=2+Math.random()*6;
+    if(s.id==='bb')score+=2+Math.random()*5;
 
-    // Tier 2
-    if(s.id==='liq')   score+=6+Math.random()*10;
-    if(s.id==='vwap')  score+=5+Math.random()*9;
-    if(s.id==='sr')    score+=6+Math.random()*10;
-    if(s.id==='choch') score+=5+Math.random()*9;
-    if(s.id==='vol')   score+=4+Math.random()*8;
-
-    // Tier 3 — quase não contribui sozinho
-    if(s.id==='rsi')   score+=1+Math.random()*5;
-    if(s.id==='bb')    score+=1+Math.random()*4;
-
-    // Bônus por ativo — calibrados para 3 pares
     const aB={
-      BTCUSDT:{bos:16,tline:15,fvg:14,ob:13,vol:11,liq:11,sr:10,ema:9,choch:8},
-      PAXGUSDT:{fvg:20,ob:20,sr:17,chan:17,tline:16,vwap:14,ema:12,liq:10},
-      EURUSDT:{sr:20,vwap:20,ema:18,tline:17,fvg:15,ob:13,choch:12,bos:10},
+      BTCUSDT: {bos:15,tline:14,fvg:13,ob:12,vol:11,liq:11,sr:9,ema:10,choch:8},
+      PAXGUSDT:{fvg:18,ob:18,sr:16,chan:16,tline:15,vwap:14,ema:12,liq:9},
+      EURUSDT: {sr:19,vwap:19,ema:17,tline:16,fvg:14,ob:12,choch:11,bos:9},
     };
     const ab=aB[sym];
     if(ab&&ab[s.id]) score+=ab[s.id];
 
-    // Timeframe — TFs maiores são mais confiáveis
-    if(tfK==='M15'||tfK==='M30'){
-      if(s.id==='fvg'||s.id==='ob') score+=7;
-      if(s.id==='sr') score+=5;
-    }
-    if(tfK==='H1'||tfK==='H4'){
-      if(s.id==='sr'||s.id==='ob'||s.id==='tline') score+=10;
-      if(s.id==='fvg') score+=8;
-    }
-
-    res[s.id]={score:Math.round(Math.min(94,Math.max(5,score)))};
+    res[s.id]={score:Math.round(Math.min(93,Math.max(5,score)))};
   });
 
-  // ================================================================
-  // DIREÇÃO — linha de tendência tem prioridade
-  // ================================================================
-  let dir;
-  if(tlineDir!=='neutro'&&tlineScore>=65){
-    dir=tlineDir;
-  } else {
-    const tier1=['fvg','ob','bos','ema','tline'];
-    const t1avg=tier1.reduce((a,k)=>a+(res[k]?.score||30),0)/tier1.length;
-    dir=Math.random()<(t1avg>65?0.65:0.55)?'BUY':'SELL';
-  }
-
-  // ================================================================
-  // SINAIS INDIVIDUAIS — thresholds altos
-  // ================================================================
-  const thresholds={
-    fvg:64,ob:64,bos:62,ema:62,tline:60,
-    liq:66,vwap:66,sr:66,choch:70,vol:67,
-    rsi:75,chan:68,bb:76
-  };
-  let confluenceCount=0;
+  // Sinais individuais — só na direção da micro-tendência
+  const thrMap={fvg:60,ob:60,bos:58,ema:58,tline:56,liq:63,vwap:63,sr:63,choch:67,vol:64,rsi:72,chan:65,bb:74};
+  let confCount=0;
   Object.keys(res).forEach(k=>{
-    const sc=res[k].score;
-    if(sc>=thresholds[k]||64){
-      res[k].signal=Math.random()<0.82?dir:(dir==='BUY'?'SELL':'BUY');
-      if(sc>=(thresholds[k]||64)) confluenceCount++;
-    } else {
-      res[k].signal='neutro';
-    }
+    if(res[k].score>=(thrMap[k]||62)){res[k].signal=dir;confCount++;}
+    else res[k].signal='neutro';
   });
 
-  // ================================================================
-  // SCORE GLOBAL — exige MUITA confluência para 90+
-  // Com poucas confluências NUNCA chega em 90
-  // ================================================================
-  const confBonus=
-    confluenceCount>=11?28:
-    confluenceCount>=9?22:
-    confluenceCount>=7?15:
-    confluenceCount>=5?8:
-    confluenceCount>=3?2:0;
+  // Score global com bônus de confluência progressivo
+  const confBonus=confCount>=11?30:confCount>=9?23:confCount>=7?15:confCount>=5?8:confCount>=3?2:0;
+  const confPenalty=confCount<=1?-35:confCount<=2?-22:confCount<=3?-10:0;
+  const trendBonus=trendStrength>70?8:trendStrength>50?4:0;
+  const offHours=(h<6||h>22)?-10:0;
 
-  const confPenalty=
-    confluenceCount<=1?-30:
-    confluenceCount<=2?-20:
-    confluenceCount<=3?-10:0;
-
-  // Penaliza fora do horário
-  const offHoursPenalty=(h<6||h>22)?-8:0;
-
-  const W={fvg:2.5,ob:2.3,bos:2.3,ema:2.1,tline:2.8,liq:1.5,vwap:1.4,sr:1.6,choch:1.6,vol:1.3,rsi:0.4,chan:2.0,bb:0.4};
+  const W={fvg:2.5,ob:2.3,bos:2.4,ema:2.2,tline:2.8,liq:1.5,vwap:1.4,sr:1.6,choch:1.5,vol:1.3,rsi:0.4,chan:2.0,bb:0.4};
   let wSum=0,wTot=0;
-  Object.keys(res).forEach(k=>{
-    const w=W[k]||1;
-    wSum+=res[k].score*w;
-    wTot+=w;
-  });
-  const global=Math.min(98,Math.max(5,Math.round(wSum/wTot+confBonus+confPenalty+offHoursPenalty)));
+  Object.keys(res).forEach(k=>{const w=W[k]||1;wSum+=res[k].score*w;wTot+=w;});
+  const global=Math.min(98,Math.max(5,Math.round(wSum/wTot+confBonus+confPenalty+trendBonus+offHours)));
 
   let trendType='';
-  if(tlineDir!=='neutro'&&tlineScore>=65){
-    trendType=tlineDir==='BUY'?`↗ LTA ${tlineTouch+2}° toque`:`↘ LTB ${tlineTouch+2}° toque`;
-  } else if(res.tline?.score>68) trendType=dir==='BUY'?'↗ Alta (HH+HL)':'↘ Baixa (LH+LL)';
-  else if(res.chan?.score>70) trendType=dir==='BUY'?'⫶ Canal Asc.':'⫶ Canal Desc.';
-  else if(res.bos?.score>72&&res.choch?.score>64) trendType=dir==='BUY'?'↗ Reversão Alta':'↘ Reversão Baixa';
+  if(tlineDir!=='neutro'&&tlineScore>=62){
+    trendType=tlineDir==='BUY'?`↗ LTA ${tlineTouches+2}° toque`:`↘ LTB ${tlineTouches+2}° toque`;
+  } else if(microTrend==='bull'&&trendStrength>55) trendType='↗ Alta (HH+HL)';
+  else if(microTrend==='bear'&&trendStrength>55) trendType='↘ Baixa (LH+LL)';
+  else if(res.bos?.score>68&&res.choch?.score>62) trendType=dir==='BUY'?'↗ Reversão Alta':'↘ Reversão Baixa';
 
   return{res,global,dir,trendType};
 }
@@ -1760,123 +1700,79 @@ async function runAnalysis(){
   const tfK=TF_KEY[tf]||'M5';
   const thr=parseInt(document.getElementById('thr').value);
 
-  // Garante preço atualizado
   if(!LIVE[sym]?.ready||LIVE[sym].price===0) await fetchAllPrices();
   const price=LIVE[sym]?.price||0;
   if(!price){showToast('tr2','❌','Preço indisponível',sym);return;}
 
-  // Roda o engine de scores
   const{res,global,dir,trendType}=computeScores(sym,tfK);
   runCount++;
 
-  // Atualiza painel de estatísticas
+  // Atualiza painel de stats
   document.getElementById('m-ru').textContent=runCount;
   document.getElementById('m-sy').textContent=PAIRS[sym]?.label||sym;
   document.getElementById('m-tf2').textContent=tfK;
   document.getElementById('ct-sym').textContent=PAIRS[sym]?.label||sym;
   updateHeaderPrice();
-
-  // Score display
   const scEl=document.getElementById('m-sc');
   scEl.textContent=global+'pts';
-  scEl.className='mc-val '+(global>=thr?'g':global>=70?'a':'');
-  document.getElementById('m-sc-s').textContent=trendType||(global>=thr?'⚡ Setup confirmado!':global>=75?'Aguardando...':'Sem setup');
+  scEl.className='mc-val '+(global>=thr?'g':global>=60?'a':'');
+  document.getElementById('m-sc-s').textContent=trendType||(global>=thr?'⚡ Setup!':global>=60?'Aguardando':'Sem setup');
   document.getElementById('mc0').className='mc'+(global>=thr?' hl':'');
-
-  let fired=0;
-  STRATS.forEach(s=>{if(res[s.id].signal!=='neutro'&&res[s.id].score>=60)fired++;});
+  let fired=0;STRATS.forEach(s=>{if(res[s.id].signal!=='neutro'&&res[s.id].score>=58)fired++;});
   document.getElementById('m-st').innerHTML=fired+'<span style="font-size:10px;color:var(--t3)">/13</span>';
-  updateStratMini(res,thr);
-  updateFocusStrats(res,thr);
+  updateStratMini(res,thr);updateFocusStrats(res,thr);
   document.getElementById('f-score').textContent=global+'pts';
-  document.getElementById('f-score').className='fscore-val '+(global>=thr?'g':global>=70?'a':'');
-  document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup confirmado!':global>=75?'Aguardando...':'Sem setup';
+  document.getElementById('f-score').className='fscore-val '+(global>=thr?'g':global>=60?'a':'');
+  document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup forte!':global>=60?'Aguardando...':'Sem setup';
   document.getElementById('f-fired').textContent=fired+' confluências';
 
-  // ================================================================
-  // SEMPRE plota análise no gráfico — mesmo sem sinal confirmado
-  // ================================================================
+  // Sem setup suficiente — não faz nada
+  if(global<thr) return;
+
+  // Fecha trade oposto se existir
+  if(trade&&trade.sym===sym&&trade.dir!==dir){
+    clearInterval(tradeTimer);
+    setAlertResult(trade.alertId,'closed',price);
+    recordTrade(trade,'closed',price);
+    delete activeTrades[trade.alertId];
+    trade=null;overlay=null;
+  }
+
+  // Verifica se sinal supera os abertos
+  const openAlerts=alerts.filter(a=>a.result==='open');
+  const maxOpen=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
+  if(openAlerts.length>0&&global<=maxOpen){
+    showToast('tb','⚡',sym+' '+global+'pts','Sinal ativo tem '+maxOpen+'pts');
+    return;
+  }
+
+  // Cobra crédito
+  const ok=await consumeCredit();
+  if(!ok)return;
+
+  // Calcula SL/TP e plota
   const sltp=calcSLTP(sym,dir,global,tf,price);
-
-
-  // Plota overlay SEMPRE (mesmo score baixo, mostra onde seriam os níveis)
-  overlay={
-    entry:sltp.entry, sl:sltp.sl, tp:sltp.tp,
-    be:sltp.beLevel, trail:null,
-    isBuy:sltp.isBuy, dec:sltp.dec,
-    analysis:true, // flag para desenhar diferente se não confirmado
-    confirmed:global>=thr
-  };
+  overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
   drawChart();
   updateBadges(dir,sltp,global,trendType);
 
-
-  // ================================================================
-  // Score abaixo de 40 — não mostra nada
-  // ================================================================
-  if(global<40){
-    showToast('tb','📊',sym+' '+global+'pts','Score muito baixo — aguardando setup melhor');
-    return;
-  }
-
-  // ================================================================
-  // Score >= 40 — mostra análise no painel de alertas + abre monitor
-  // ================================================================
-
-  // Plota overlay no gráfico
-  overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
-  drawChart();
-
-  // Verifica se sinal é aceito (score maior que os abertos)
-  const openAlerts=alerts.filter(a=>a.result==='open');
-  const maxOpenScore=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
-  if(openAlerts.length>0&&global<=maxOpenScore){
-    showToast('tb','⚡',sym+' '+global+'pts','Sinal ativo tem '+maxOpenScore+'pts — aguarde');
-    return;
-  }
-
-  // Score >= threshold = sinal confirmado (cobra crédito)
-  if(global>=thr){
-    // Fecha trade oposto se existir
-    if(trade&&trade.sym===sym&&trade.dir!==dir){
-      clearInterval(tradeTimer);
-      setAlertResult(trade.alertId,'closed',price);
-      recordTrade(trade,'closed',price);
-      delete activeTrades[trade.alertId];
-      trade=null;
-    }
-    const ok=await consumeCredit();
-    if(!ok)return;
-  }
-
-  // Adiciona no painel de alertas (score>=40 sempre aparece)
+  // Adiciona alerta
   const added=addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
   if(!added)return;
 
   if(soundOn)playBeep(global,'signal');
-  showToast('ts','⚡','Análise '+global+'pts — '+sym+' '+dir,'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec));
+  showToast('ts','⚡','Setup '+global+'pts — '+sym+' '+dir,
+    'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec)+' · RR 1:'+sltp.rr.toFixed(1));
+  narrateSignal(sym,dir,global,fired,sltp,trendType);
 
-  if(global>=thr){
-    narrateSignal(sym,dir,global,fired,sltp,trendType);
-  } else {
-    // Narra sem contar como sinal confirmado
-    if(narratorOn) speak(PAIRS[sym]?.vname+'. Score '+global+' pontos. '+dir==='BUY'?'Possível compra':'Possível venda'+'. Aguardando confirmação.',false);
-  }
-
-  // Inicia trade e abre monitor
+  // Inicia trade e abre monitor automaticamente
   startTrade(sym,dir,sltp,tfK);
   setTimeout(()=>{
     const a=alerts.find(x=>x.result==='open');
-    if(a) openTradeMonitor(a);
+    if(a)openTradeMonitor(a);
   },400);
   refreshFocusIfOpen();
 }
-
-// ================================================================
-// ANÁLISE TEXTUAL — descreve o setup
-
-
-
 function updateBadges(dir,sltp,score,trendType){
   const d=sltp.dec;let h=`<span class="cbadge ${dir==='BUY'?'cb-dir-b':'cb-dir-s'}">${dir}</span>`;
   h+=`<span class="cbadge cb-sc">Score ${score}pts</span>`;h+=`<span class="cbadge cb-ent">ENT ${fp(sltp.entry,d)}</span>`;h+=`<span class="cbadge cb-sl">SL ${fp(sltp.sl,d)}</span>`;h+=`<span class="cbadge cb-tp">TP ${fp(sltp.tp,d)}</span>`;h+=`<span class="cbadge cb-be">BE ${fp(sltp.beLevel,d)}</span>`;
