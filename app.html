@@ -1812,42 +1812,64 @@ async function runAnalysis(){
 
 
   // ================================================================
-  // SÓ GERA SINAL se score >= threshold
+  // Score abaixo de 40 — não mostra nada
   // ================================================================
+  if(global<40){
+    showToast('tb','📊',sym+' '+global+'pts','Score muito baixo — aguardando setup melhor');
+    return;
+  }
+
+  // ================================================================
+  // Score >= 40 — mostra análise no painel de alertas + abre monitor
+  // ================================================================
+
+  // Plota overlay no gráfico
+  overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
+  drawChart();
+
+  // Verifica se sinal é aceito (score maior que os abertos)
+  const openAlerts=alerts.filter(a=>a.result==='open');
+  const maxOpenScore=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
+  if(openAlerts.length>0&&global<=maxOpenScore){
+    showToast('tb','⚡',sym+' '+global+'pts','Sinal ativo tem '+maxOpenScore+'pts — aguarde');
+    return;
+  }
+
+  // Score >= threshold = sinal confirmado (cobra crédito)
   if(global>=thr){
-    // Fecha trade oposto
+    // Fecha trade oposto se existir
     if(trade&&trade.sym===sym&&trade.dir!==dir){
       clearInterval(tradeTimer);
       setAlertResult(trade.alertId,'closed',price);
       recordTrade(trade,'closed',price);
       delete activeTrades[trade.alertId];
-      trade=null;overlay.trail=null;
+      trade=null;
     }
-    // Verifica se sinal é aceito (score maior que os abertos)
-    const openAlerts=alerts.filter(a=>a.result==='open');
-    const maxOpenScore=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
-    if(openAlerts.length>0&&global<=maxOpenScore){
-      showToast('tb','⚡',sym+' '+global+'pts','Sinal ativo tem '+maxOpenScore+'pts — aguarde');
-      return;
-    }
-    // Cobra crédito
     const ok=await consumeCredit();
     if(!ok)return;
-    // Garante overlay confirmado
-    overlay.confirmed=true;
-    drawChart();
-    const added=addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
-    if(!added)return;
-    if(soundOn)playBeep(global,'signal');
-    showToast('ts','⚡','Setup '+global+'pts — '+sym+' '+dir,'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec)+' · RR 1:'+sltp.rr.toFixed(1));
-    narrateSignal(sym,dir,global,fired,sltp,trendType);
-    startTrade(sym,dir,sltp,tfK);
-    setTimeout(()=>{
-      const firstAlert=alerts.find(a=>a.result==='open');
-      if(firstAlert)openTradeMonitor(firstAlert);
-    },500);
-    refreshFocusIfOpen();
   }
+
+  // Adiciona no painel de alertas (score>=40 sempre aparece)
+  const added=addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
+  if(!added)return;
+
+  if(soundOn)playBeep(global,'signal');
+  showToast('ts','⚡','Análise '+global+'pts — '+sym+' '+dir,'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec));
+
+  if(global>=thr){
+    narrateSignal(sym,dir,global,fired,sltp,trendType);
+  } else {
+    // Narra sem contar como sinal confirmado
+    if(narratorOn) speak(PAIRS[sym]?.vname+'. Score '+global+' pontos. '+dir==='BUY'?'Possível compra':'Possível venda'+'. Aguardando confirmação.',false);
+  }
+
+  // Inicia trade e abre monitor
+  startTrade(sym,dir,sltp,tfK);
+  setTimeout(()=>{
+    const a=alerts.find(x=>x.result==='open');
+    if(a) openTradeMonitor(a);
+  },400);
+  refreshFocusIfOpen();
 }
 
 // ================================================================
