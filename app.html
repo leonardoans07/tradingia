@@ -1202,13 +1202,9 @@ async function runMultiScan(){
     const priceEl = document.getElementById(`mp-price-${sym}`);
     if(priceEl) priceEl.textContent = fp(price, dec);
 
-    // Scan do símbolo
     const scanEl = document.getElementById(`mp-scan-${sym}`);
     if(scanEl) scanEl.textContent = 'analisando...';
-
-    // Pequeno delay para não sobrecarregar
-    await new Promise(r => setTimeout(r, 200));
-
+    await new Promise(r => setTimeout(r, 150));
     const {res, global, dir, trendType} = computeScores(sym, tfK);
 
     let fired = 0;
@@ -1237,36 +1233,27 @@ async function runMultiScan(){
       signalsFound++;
       card?.classList.add('signal');
 
-      // Evita repetir o mesmo sinal do mesmo par em menos de 2 min
       const lastSignal = multiResults[sym]?.lastSignal || 0;
       const now = Date.now();
       if(now - lastSignal > 120000){
         multiResults[sym] = {score: global, dir, fired, lastSignal: now};
-
-        const sltp = calcSLTP(sym, dir, global, tf, price);
-        const label = PAIRS[sym]?.label || sym;
-
-        // Adiciona alerta
-        addAlert(sym, tfK, global, dir, fired, sltp, price, trendType);
-
-        // Narra se narrador ativo
-        if(narratorOn){
-          const dirWord = dir === 'BUY' ? 'compra' : 'venda';
-          speak(`Atenção! Setup de ${dirWord} em ${PAIRS[sym]?.vname||sym}. Score ${global} pontos. Entrada em ${fpVoice(sltp.entry, sltp.dec)}.`, true);
-        }
-
-        // Toast
-        showToast('ts', '⚡', `${label} — ${dir} ${global}pts`, `ENT ${fp(sltp.entry,sltp.dec)} · SL ${fp(sltp.sl,sltp.dec)} · TP ${fp(sltp.tp,sltp.dec)}`);
-
-        // Som
-        if(soundOn) playBeep(global, 'signal');
-
-        // Se é o símbolo atual, carrega overlay no gráfico
-        const currentSym = document.getElementById('sel-sym').value;
-        if(currentSym === sym){
-          overlay = {entry:sltp.entry, sl:sltp.sl, tp:sltp.tp, be:sltp.beLevel, trail:null, isBuy:sltp.isBuy, dec:sltp.dec};
-          drawChart();
-          updateBadges(dir, sltp, global, trendType);
+        // Usa runAutoScan para consistência — só gera se >= thr
+        const curSym=document.getElementById('sel-sym').value;
+        if(curSym===sym){
+          await runAutoScan(sym,tfK,tf,thr);
+        } else {
+          // Par diferente do selecionado — só cria alerta se >= thr
+          if(global>=thr){
+            const sltp=calcSLTP(sym,dir,global,tf,price);
+            const openA=alerts.filter(a=>a.result==='open');
+            const maxO=openA.length>0?Math.max(...openA.map(a=>a.score)):0;
+            if(openA.length===0||global>maxO){
+              addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
+              showToast('ts','⚡',PAIRS[sym]?.label+' — '+dir+' '+global+'pts','ENT '+fp(sltp.entry,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec));
+              if(soundOn) playBeep(global,'signal');
+              if(narratorOn) speak('Setup de '+(dir==='BUY'?'compra':'venda')+' em '+(PAIRS[sym]?.vname||sym)+'. Score '+global+' pontos.',true);
+            }
+          }
         }
       }
     } else {
@@ -1694,6 +1681,11 @@ function calcSLTP(sym,dir,score,tfRaw,price){
 // ================================================================
 // RUN ANALYSIS
 // ================================================================
+// ================================================================
+// MODO MANUAL — botão ANALISAR
+// Faz análise imediata, plota sempre, mostra no alerta
+// NÃO depende do threshold para plotar
+// ================================================================
 async function runAnalysis(){
   const sym=document.getElementById('sel-sym').value;
   const tf=document.getElementById('sel-tf').value;
@@ -1704,10 +1696,130 @@ async function runAnalysis(){
   const price=LIVE[sym]?.price||0;
   if(!price){showToast('tr2','❌','Preço indisponível',sym);return;}
 
+  // Garante candles atualizados antes da análise
+  await loadCandles();
+
   const{res,global,dir,trendType}=computeScores(sym,tfK);
   runCount++;
 
-  // Atualiza painel de stats
+  // Atualiza painel de stats sempre
+  updateStatsPanel(sym,tfK,global,trendType,res,thr);
+
+  // Calcula SL/TP sempre
+  const sltp=calcSLTP(sym,dir,global,tf,price);
+
+  // SEMPRE plota no gráfico (modo análise manual)
+  overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
+  drawChart();
+  updateBadges(dir,sltp,global,trendType);
+
+  let fired=0;STRATS.forEach(s=>{if(res[s.id].signal!=='neutro'&&res[s.id].score>=58)fired++;});
+
+  // SEMPRE adiciona no painel de alertas (modo análise)
+  // Mostra o sinal com indicação de qualidade
+  const qualLabel=global>=thr?'✅ CONFIRMADO':global>=70?'🟡 Moderado':global>=50?'🔵 Fraco':'⚪ Muito fraco';
+
+  // Adiciona no alerta mesmo sem threshold
+  addAlertManual(sym,tfK,global,dir,fired,sltp,price,trendType,qualLabel);
+
+  if(soundOn&&global>=thr) playBeep(global,'signal');
+  showToast('ts','📊','Análise '+sym+' — '+global+'pts — '+dir,
+    'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec));
+
+  // Só narra se score bom
+  if(global>=60&&narratorOn) narrateSignal(sym,dir,global,fired,sltp,trendType);
+
+  // Só cobra crédito e inicia trade se >= threshold
+  if(global>=thr){
+    const openAlerts=alerts.filter(a=>a.result==='open');
+    const maxOpen=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
+    if(openAlerts.length>0&&global<=maxOpen){
+      showToast('tb','⚡','Sinal ativo tem '+maxOpen+'pts','Aguarde fechar para novo sinal');
+      return;
+    }
+    if(trade&&trade.sym===sym&&trade.dir!==dir){
+      clearInterval(tradeTimer);setAlertResult(trade.alertId,'closed',price);
+      recordTrade(trade,'closed',price);delete activeTrades[trade.alertId];trade=null;overlay.trail=null;
+    }
+    const ok=await consumeCredit();
+    if(!ok)return;
+    startTrade(sym,dir,sltp,tfK);
+    setTimeout(()=>{const a=alerts.find(x=>x.result==='open');if(a)openTradeMonitor(a);},400);
+  }
+  refreshFocusIfOpen();
+}
+
+// ================================================================
+// MODO AUTO/MULTI — triggered pelo timer, só acima do threshold
+// Não plota, não abre monitor — só gera sinal quando score >= thr
+// ================================================================
+async function runAutoScan(sym, tfK, tf, thr){
+  const price=LIVE[sym]?.price||0;
+  if(!price) return;
+
+  const{res,global,dir,trendType}=computeScores(sym,tfK);
+  runCount++;
+  updateStatsPanel(sym,tfK,global,trendType,res,thr);
+
+  // Ignora se score abaixo do threshold
+  if(global<thr) return;
+
+  // Verifica sinal mais forte
+  const openAlerts=alerts.filter(a=>a.result==='open');
+  const maxOpen=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
+  if(openAlerts.length>0&&global<=maxOpen) return;
+
+  // Fecha trade oposto
+  if(trade&&trade.sym===sym&&trade.dir!==dir){
+    clearInterval(tradeTimer);setAlertResult(trade.alertId,'closed',price);
+    recordTrade(trade,'closed',price);delete activeTrades[trade.alertId];trade=null;
+  }
+
+  // Cobra crédito
+  const ok=await consumeCredit();
+  if(!ok) return;
+
+  // Plota no gráfico e adiciona alerta
+  const sltp=calcSLTP(sym,dir,global,tf,price);
+  overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
+  drawChart();
+  updateBadges(dir,sltp,global,trendType);
+
+  let fired=0;STRATS.forEach(s=>{if(res[s.id].signal!=='neutro'&&res[s.id].score>=58)fired++;});
+  const added=addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
+  if(!added)return;
+
+  if(soundOn) playBeep(global,'signal');
+  showToast('ts','⚡','Setup '+global+'pts — '+sym+' '+dir,
+    'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec)+' · RR 1:'+sltp.rr.toFixed(1));
+  narrateSignal(sym,dir,global,fired,sltp,trendType);
+  startTrade(sym,dir,sltp,tfK);
+  setTimeout(()=>{const a=alerts.find(x=>x.result==='open');if(a)openTradeMonitor(a);},400);
+  refreshFocusIfOpen();
+}
+
+// Adiciona alerta do modo manual (sempre aparece, com label de qualidade)
+function addAlertManual(sym,tf,score,dir,fired,sltp,price,trendType,qualLabel){
+  // Remove análise manual anterior do mesmo par se existir
+  const existIdx=alerts.findIndex(a=>a.manual&&a.sym===sym);
+  if(existIdx>=0) alerts.splice(existIdx,1);
+
+  const now=new Date();const id='al'+Date.now();
+  alerts.unshift({
+    id,sym,tf,score,dir,fired,sltp,price,trendType,
+    time:now.toLocaleTimeString('pt-BR'),
+    result:'open',exitPrice:null,
+    manual:true, // flag — análise manual
+    qualLabel
+  });
+  if(alerts.length>10)alerts.pop();
+  renderAlerts();
+  document.getElementById('m-al').textContent=alerts.length;
+  document.getElementById('alert-b').textContent=alerts.length;
+}
+
+// Atualiza painel de stats (compartilhado pelos dois modos)
+function updateStatsPanel(sym,tfK,global,trendType,res,thr){
   document.getElementById('m-ru').textContent=runCount;
   document.getElementById('m-sy').textContent=PAIRS[sym]?.label||sym;
   document.getElementById('m-tf2').textContent=tfK;
@@ -1715,63 +1827,16 @@ async function runAnalysis(){
   updateHeaderPrice();
   const scEl=document.getElementById('m-sc');
   scEl.textContent=global+'pts';
-  scEl.className='mc-val '+(global>=thr?'g':global>=60?'a':'');
-  document.getElementById('m-sc-s').textContent=trendType||(global>=thr?'⚡ Setup!':global>=60?'Aguardando':'Sem setup');
+  scEl.className='mc-val '+(global>=thr?'g':global>=65?'a':'');
+  document.getElementById('m-sc-s').textContent=trendType||(global>=thr?'⚡ Setup!':global>=65?'Aguardando':'Sem setup');
   document.getElementById('mc0').className='mc'+(global>=thr?' hl':'');
   let fired=0;STRATS.forEach(s=>{if(res[s.id].signal!=='neutro'&&res[s.id].score>=58)fired++;});
   document.getElementById('m-st').innerHTML=fired+'<span style="font-size:10px;color:var(--t3)">/13</span>';
   updateStratMini(res,thr);updateFocusStrats(res,thr);
   document.getElementById('f-score').textContent=global+'pts';
-  document.getElementById('f-score').className='fscore-val '+(global>=thr?'g':global>=60?'a':'');
-  document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup forte!':global>=60?'Aguardando...':'Sem setup';
+  document.getElementById('f-score').className='fscore-val '+(global>=thr?'g':global>=65?'a':'');
+  document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup forte!':global>=65?'Aguardando...':'Sem setup';
   document.getElementById('f-fired').textContent=fired+' confluências';
-
-  // Sem setup suficiente — não faz nada
-  if(global<thr) return;
-
-  // Fecha trade oposto se existir
-  if(trade&&trade.sym===sym&&trade.dir!==dir){
-    clearInterval(tradeTimer);
-    setAlertResult(trade.alertId,'closed',price);
-    recordTrade(trade,'closed',price);
-    delete activeTrades[trade.alertId];
-    trade=null;overlay=null;
-  }
-
-  // Verifica se sinal supera os abertos
-  const openAlerts=alerts.filter(a=>a.result==='open');
-  const maxOpen=openAlerts.length>0?Math.max(...openAlerts.map(a=>a.score)):0;
-  if(openAlerts.length>0&&global<=maxOpen){
-    showToast('tb','⚡',sym+' '+global+'pts','Sinal ativo tem '+maxOpen+'pts');
-    return;
-  }
-
-  // Cobra crédito
-  const ok=await consumeCredit();
-  if(!ok)return;
-
-  // Calcula SL/TP e plota
-  const sltp=calcSLTP(sym,dir,global,tf,price);
-  overlay={entry:sltp.entry,sl:sltp.sl,tp:sltp.tp,be:sltp.beLevel,trail:null,isBuy:sltp.isBuy,dec:sltp.dec};
-  drawChart();
-  updateBadges(dir,sltp,global,trendType);
-
-  // Adiciona alerta
-  const added=addAlert(sym,tfK,global,dir,fired,sltp,price,trendType);
-  if(!added)return;
-
-  if(soundOn)playBeep(global,'signal');
-  showToast('ts','⚡','Setup '+global+'pts — '+sym+' '+dir,
-    'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec)+' · RR 1:'+sltp.rr.toFixed(1));
-  narrateSignal(sym,dir,global,fired,sltp,trendType);
-
-  // Inicia trade e abre monitor automaticamente
-  startTrade(sym,dir,sltp,tfK);
-  setTimeout(()=>{
-    const a=alerts.find(x=>x.result==='open');
-    if(a)openTradeMonitor(a);
-  },400);
-  refreshFocusIfOpen();
 }
 function updateBadges(dir,sltp,score,trendType){
   const d=sltp.dec;let h=`<span class="cbadge ${dir==='BUY'?'cb-dir-b':'cb-dir-s'}">${dir}</span>`;
