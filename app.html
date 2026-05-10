@@ -1164,43 +1164,73 @@ async function doAnalyze(){
   const tfK=TF_KEY[tf]||'M5';
   const thr=parseInt(document.getElementById('thr').value);
 
-  await loadCandles();
-  await fetchPrice();
+  try{
+    // Busca candles e preço em paralelo (mais rápido)
+    await Promise.all([loadCandles(), fetchPrice()]);
+  }catch(e){}
 
+  // Analisa
   const a=analyzeMarket(sym,tfK);
-  if(!a){toast('❌ Sem dados suficientes','err');btn.disabled=false;btn.innerHTML='▶ Analisar';analyzing=false;return;}
+  if(!a){
+    toast('❌ Sem dados — tente novamente','err');
+    btn.disabled=false;btn.innerHTML='▶ Analisar';
+    analyzing=false;return;
+  }
 
-  // Atualiza painéis SEMPRE
+  // Atualiza TUDO sempre
   updateProbPanel(a);
   updateSMCPanel(a);
-
-  // Plota overlay SEMPRE
   overlay={...a.sltp};
   drawChart();
   updateChartBadges(a);
 
-  toast(`📊 Análise: ${sym} — ${a.global}pts ${a.dir==='BUY'?'▲':'▼'} ${a.dir}`,'neu');
-  if(narratorOn)narrate(`${PAIRS[sym]?.vname}. Score ${a.global} pontos. ${a.dir==='BUY'?'Possível compra':'Possível venda'}. Entrada em ${fpV(a.sltp.entry,a.sltp.dec)}.`);
+  // Adiciona no painel de alertas SEMPRE (sem cobrar crédito ainda)
+  const idManual='al'+Date.now();
+  // Remove análise manual anterior do mesmo par
+  const prevIdx=alerts.findIndex(x=>x.manual&&x.sym===sym);
+  if(prevIdx>=0) alerts.splice(prevIdx,1);
+  alerts.unshift({
+    id:idManual,sym,tf:tfK,score:a.global,dir:a.dir,
+    sltp:a.sltp,time:new Date().toLocaleTimeString('pt-BR'),
+    result:'open',exitPrice:null,manual:true
+  });
+  if(alerts.length>12)alerts.pop();
+  renderAlerts();
+  document.getElementById('alert-count').textContent=alerts.length;
 
-  // Só gera sinal e cobra crédito se >= threshold
+  toast('📊 '+sym+' — '+a.global+'pts '+a.dir,'neu');
+  if(narratorOn)narrate(PAIRS[sym]?.vname+'. Score '+a.global+' pontos. '+(a.dir==='BUY'?'Possível compra':'Possível venda'));
+
+  // Abre monitor de trade sempre
+  setTimeout(()=>{
+    const alertObj=alerts.find(x=>x.id===idManual);
+    if(alertObj&&!trade) startTrade(alertObj);
+  },300);
+
+  // Cobra crédito e confirma sinal se >= threshold
   if(a.global>=thr){
-    const openA=alerts.filter(x=>x.result==='open');
-    const maxO=openA.length>0?Math.max(...openA.map(x=>x.score)):0;
-    if(openA.length>0&&a.global<=maxO){toast(`Sinal ativo tem ${maxO}pts — aguarde`,'info');btn.disabled=false;btn.innerHTML='▶ Analisar';analyzing=false;return;}
-    const ok=await consumeCredit();
-    if(!ok){btn.disabled=false;btn.innerHTML='▶ Analisar';analyzing=false;return;}
-    addSignal(a,tfK);
-    startTrade(a);
-    toast(`⚡ Sinal confirmado ${a.global}pts — ${sym} ${a.dir}`,'ok');
-    if(narratorOn)narrate(`Sinal confirmado! ${a.dir==='BUY'?'Compra':'Venda'} em ${fpV(a.sltp.entry,a.sltp.dec)}. Stop em ${fpV(a.sltp.sl,a.sltp.dec)}. Alvo em ${fpV(a.sltp.tp,a.sltp.dec)}.`);
+    const openAuto=alerts.filter(x=>x.result==='open'&&!x.manual);
+    const maxO=openAuto.length>0?Math.max(...openAuto.map(x=>x.score)):0;
+    if(openAuto.length>0&&a.global<=maxO){
+      toast('Sinal ativo tem '+maxO+'pts — aguarde fechar','info');
+    } else {
+      const ok=await consumeCredit();
+      if(ok){
+        // Marca como sinal confirmado (não manual)
+        const al=alerts.find(x=>x.id===idManual);
+        if(al) al.manual=false;
+        renderAlerts();
+        toast('⚡ Sinal confirmado '+a.global+'pts — '+sym+' '+a.dir,'ok');
+        if(narratorOn)narrate('Sinal confirmado! '+(a.dir==='BUY'?'Compra':'Venda')+' em '+fpV(a.sltp.entry,a.sltp.dec)+'. Stop em '+fpV(a.sltp.sl,a.sltp.dec)+'. Alvo em '+fpV(a.sltp.tp,a.sltp.dec));
+      }
+    }
   }
 
-  btn.disabled=false;btn.innerHTML='▶ Analisar';analyzing=false;
+  btn.disabled=false;btn.innerHTML='▶ Analisar';
+  analyzing=false;
 }
 
-// ================================================================
-// MODO AUTO — só >= threshold
-// ================================================================
+
 async function runAutoScan(){
   const sym=document.getElementById('sel-sym').value;
   const tf=document.getElementById('sel-tf').value;
@@ -1246,7 +1276,7 @@ function renderAlerts(){
   el.innerHTML=alerts.map(a=>{
     const s=a.sltp,isBuy=a.dir==='BUY';
     const resClass=a.result==='open'?'open':a.result==='tp'?'win':a.result==='sl'?'loss':'be';
-    const resLabel=a.result==='open'?'⏳ Em andamento':a.result==='tp'?'✅ WIN — TP':a.result==='sl'?'❌ LOSS — SL':a.result==='be'?'🛡 Breakeven':'🔄 Encerrado';
+    const resLabel=a.result==='open'?(a.manual?'📊 Análise manual':'⏳ Em andamento'):a.result==='tp'?'✅ WIN — TP':a.result==='sl'?'❌ LOSS — SL':a.result==='be'?'🛡 Breakeven':'🔄 Encerrado';
     return `<div class="alert-card ${isBuy?'buy-card':'sell-card'}" onclick="clickAlert('${a.id}')">
       <div class="ac-top">
         <div>
@@ -1284,8 +1314,9 @@ function setAlertResult(id,result,exitPrice){
 
 function startTrade(a){
   if(trade)return;
-  const s=a.sltp;
-  trade={id:alerts[0]?.id,sym:a.sym,dir:a.dir,sltp:s,cur:s.entry,beDone:false,openTime:Date.now()};
+  const s=a.sltp||a; // aceita objeto de análise ou de alerta
+  if(!s||!s.entry)return;
+  trade={id:a.id||alerts[0]?.id,sym:a.sym,dir:a.dir,sltp:s,cur:s.entry,beDone:false,openTime:Date.now()};
   const g=id=>document.getElementById(id);
   g('tm-card').className='tm-card vis';
   g('tm-sym').textContent=(PAIRS[a.sym]?.label||a.sym)+' '+a.dir;
