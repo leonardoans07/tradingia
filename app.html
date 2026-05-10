@@ -538,6 +538,7 @@ async function loadCandles(){
     if(!r.ok)throw new Error();
     const raw=await r.json();
     candles=raw.map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]}));
+    resizeCanvas();
     drawChart();
   }catch(e){genCandles();}
 }
@@ -591,13 +592,19 @@ function initCanvas(){
   if(!chartCanvas)return;
   chartCtx=chartCanvas.getContext('2d');
   resizeCanvas();
+  drawChart();
   window.addEventListener('resize',()=>{resizeCanvas();drawChart();});
+  // Redimensiona após fonts carregarem
+  setTimeout(()=>{resizeCanvas();drawChart();},500);
 }
 function resizeCanvas(){
   if(!chartCanvas)return;
   const wrap=chartCanvas.parentElement;
-  chartCanvas.width=wrap.clientWidth||700;
-  chartCanvas.height=wrap.clientHeight||360;
+  if(!wrap)return;
+  const w=wrap.offsetWidth||wrap.clientWidth||700;
+  const h=wrap.offsetHeight||wrap.clientHeight||360;
+  if(chartCanvas.width!==w) chartCanvas.width=w;
+  if(chartCanvas.height!==h) chartCanvas.height=h;
 }
 
 function drawChart(){
@@ -1180,13 +1187,27 @@ async function doAnalyze(){
   // Atualiza TUDO sempre
   updateProbPanel(a);
   updateSMCPanel(a);
-  overlay={...a.sltp};
-  drawChart();
-  updateChartBadges(a);
 
-  // Adiciona no painel de alertas SEMPRE (sem cobrar crédito ainda)
+  // Garante overlay e redesenha canvas IMEDIATAMENTE
+  overlay = {
+    entry: a.sltp.entry,
+    sl:    a.sltp.sl,
+    tp:    a.sltp.tp,
+    be:    a.sltp.be,
+    trail: null,
+    isBuy: a.sltp.isBuy,
+    dec:   a.sltp.dec
+  };
+
+  // Força resize + redraw do canvas
+  resizeCanvas();
+  requestAnimationFrame(()=>{
+    drawChart();
+    updateChartBadges(a);
+  });
+
+  // SEMPRE adiciona alerta e abre monitor
   const idManual='al'+Date.now();
-  // Remove análise manual anterior do mesmo par
   const prevIdx=alerts.findIndex(x=>x.manual&&x.sym===sym);
   if(prevIdx>=0) alerts.splice(prevIdx,1);
   alerts.unshift({
@@ -1194,34 +1215,33 @@ async function doAnalyze(){
     sltp:a.sltp,time:new Date().toLocaleTimeString('pt-BR'),
     result:'open',exitPrice:null,manual:true
   });
-  if(alerts.length>12)alerts.pop();
+  if(alerts.length>12) alerts.pop();
   renderAlerts();
   document.getElementById('alert-count').textContent=alerts.length;
 
-  toast('📊 '+sym+' — '+a.global+'pts '+a.dir,'neu');
-  if(narratorOn)narrate(PAIRS[sym]?.vname+'. Score '+a.global+' pontos. '+(a.dir==='BUY'?'Possível compra':'Possível venda'));
-
-  // Abre monitor de trade sempre
-  setTimeout(()=>{
+  // Abre monitor imediatamente
+  if(!trade){
     const alertObj=alerts.find(x=>x.id===idManual);
-    if(alertObj&&!trade) startTrade(alertObj);
-  },300);
+    if(alertObj) startTrade(alertObj);
+  }
 
-  // Cobra crédito e confirma sinal se >= threshold
+  toast('📊 '+sym+' — '+a.global+'pts — '+(a.dir==='BUY'?'▲ BUY':'▼ SELL'),'neu');
+  if(narratorOn) narrate(PAIRS[sym]?.vname+'. Score '+a.global+' pontos. '+(a.dir==='BUY'?'Possível compra':'Possível venda')+'. Entrada '+fpV(a.sltp.entry,a.sltp.dec));
+
+  // Cobra crédito se >= threshold
   if(a.global>=thr){
     const openAuto=alerts.filter(x=>x.result==='open'&&!x.manual);
     const maxO=openAuto.length>0?Math.max(...openAuto.map(x=>x.score)):0;
     if(openAuto.length>0&&a.global<=maxO){
-      toast('Sinal ativo tem '+maxO+'pts — aguarde fechar','info');
+      toast('Sinal ativo tem '+maxO+'pts','info');
     } else {
       const ok=await consumeCredit();
       if(ok){
-        // Marca como sinal confirmado (não manual)
         const al=alerts.find(x=>x.id===idManual);
         if(al) al.manual=false;
         renderAlerts();
         toast('⚡ Sinal confirmado '+a.global+'pts — '+sym+' '+a.dir,'ok');
-        if(narratorOn)narrate('Sinal confirmado! '+(a.dir==='BUY'?'Compra':'Venda')+' em '+fpV(a.sltp.entry,a.sltp.dec)+'. Stop em '+fpV(a.sltp.sl,a.sltp.dec)+'. Alvo em '+fpV(a.sltp.tp,a.sltp.dec));
+        if(narratorOn) narrate('Sinal confirmado! '+(a.dir==='BUY'?'Compra':'Venda')+' em '+fpV(a.sltp.entry,a.sltp.dec)+'. Stop em '+fpV(a.sltp.sl,a.sltp.dec)+'. Alvo em '+fpV(a.sltp.tp,a.sltp.dec));
       }
     }
   }
@@ -1312,21 +1332,23 @@ function setAlertResult(id,result,exitPrice){
   if(a){a.result=result;a.exitPrice=exitPrice;renderAlerts();}
 }
 
-function startTrade(a){
-  if(trade)return;
-  const s=a.sltp||a; // aceita objeto de análise ou de alerta
-  if(!s||!s.entry)return;
-  trade={id:a.id||alerts[0]?.id,sym:a.sym,dir:a.dir,sltp:s,cur:s.entry,beDone:false,openTime:Date.now()};
+function startTrade(alertObj){
+  if(trade) return;
+  const s=alertObj.sltp;
+  if(!s||!s.entry) return;
+  trade={id:alertObj.id,sym:alertObj.sym,dir:alertObj.dir,sltp:s,cur:livePrice||s.entry,beDone:false,openTime:Date.now()};
   const g=id=>document.getElementById(id);
   g('tm-card').className='tm-card vis';
-  g('tm-sym').textContent=(PAIRS[a.sym]?.label||a.sym)+' '+a.dir;
-  g('tm-tf').textContent=document.getElementById('sel-tf').value.toUpperCase();
+  g('tm-sym').textContent=(PAIRS[alertObj.sym]?.label||alertObj.sym)+' '+alertObj.dir;
+  g('tm-tf').textContent=alertObj.tf||'M5';
   g('tm-entry').textContent=fp(s.entry,s.dec);
   g('tm-sl').textContent=fp(s.sl,s.dec);
   g('tm-tp').textContent=fp(s.tp,s.dec);
   g('tm-be').textContent=fp(s.be,s.dec);
   g('tm-rr').textContent='1:'+s.rr+' · '+s.slPct+'%';
-  if(tradeTimer)clearInterval(tradeTimer);
+  g('tm-status').textContent='Aberto';
+  g('tm-status').style.color='var(--gold)';
+  if(tradeTimer) clearInterval(tradeTimer);
   tradeTimer=setInterval(()=>updateTradeMonitor(),2000);
 }
 
