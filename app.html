@@ -1213,7 +1213,7 @@ let _sb = null;
 let _currentUser = null;
 let _userCredits = 0;
 
-async function async function initSupabase(){
+async function initSupabase(){
   try{
     const{createClient}=supabase;
     _sb=createClient(_SB_URL,_SB_KEY);
@@ -2629,6 +2629,10 @@ function p2(n){return String(n).padStart(2,'0');}
 function updateClock(){document.getElementById('clk').textContent=new Date().toLocaleTimeString('pt-BR');}
 
 init();
+
+function toggleMulti(){ if(typeof toggleMultiScan==='function') toggleMultiScan(); }
+function toggleNarr(){ if(typeof toggleNarrator==='function') toggleNarrator(); }
+function fetchPrice(){ if(typeof fetchAllPrices==='function') fetchAllPrices(); }
 </script>
 </body>
 </html>
