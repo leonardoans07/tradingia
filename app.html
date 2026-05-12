@@ -1681,357 +1681,7 @@ function calcSLTP(sym,dir,score,tfRaw,price){
 // MODO MANUAL — botão ANALISAR
 // Sempre analisa e plota. Só cobra crédito se >= threshold
 // ================================================================
-async function runAnalysis(){
-  const sym = document.getElementById('sel-sym').value;
-  const tf  = document.getElementById('sel-tf').value;
-  const tfK = TF_KEY[tf] || 'M5';
-  const thr = parseInt(document.getElementById('thr').value);
-
-  // Atualiza preço e candles
-  if(!LIVE[sym]?.ready || LIVE[sym].price === 0) await fetchAllPrices();
-  const price = LIVE[sym]?.price || 0;
-  if(!price){ showToast('tr2','❌','Preço indisponível', sym); return; }
-  await loadCandles();
-
-  // Calcula scores
-  const {res, global, dir, trendType} = computeScores(sym, tfK);
-  runCount++;
-  updateStatsPanel(sym, tfK, global, trendType, res, thr);
-  updateProbPanel(sym, res, global, dir, price);
-
-  // Calcula níveis
-  const sltp = calcSLTP(sym, dir, global, tf, price);
-  let fired = 0;
-  STRATS.forEach(s=>{ if(res[s.id].signal!=='neutro' && res[s.id].score>=58) fired++; });
-
-  // SEMPRE plota no gráfico
-  overlay = {entry:sltp.entry, sl:sltp.sl, tp:sltp.tp, be:sltp.beLevel, trail:null, isBuy:sltp.isBuy, dec:sltp.dec};
-  drawChart();
-  updateBadges(dir, sltp, global, trendType);
-
-  // SEMPRE adiciona no painel de alertas (substitui análise anterior do mesmo par)
-  const existIdx = alerts.findIndex(a => a.manual && a.sym === sym);
-  if(existIdx >= 0) alerts.splice(existIdx, 1);
-  const id = 'al' + Date.now();
-  alerts.unshift({
-    id, sym, tf:tfK, score:global, dir, fired, sltp, price, trendType,
-    time: new Date().toLocaleTimeString('pt-BR'),
-    result: 'open', exitPrice: null, manual: true
-  });
-  if(alerts.length > 10) alerts.pop();
-  renderAlerts();
-  document.getElementById('m-al').textContent = alerts.length;
-  document.getElementById('alert-b').textContent = alerts.length;
-
-  // Toast sempre
-  showToast('ts','📊', sym+' '+global+'pts — '+dir,
-    'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec));
-
-  if(narratorOn && global >= 50)
-    speak(PAIRS[sym]?.vname+'. Score '+global+' pontos. '+(dir==='BUY'?'Compra':'Venda')+'. Entrada '+fpVoice(sltp.entry,sltp.dec),false);
-
-  // Abre monitor sempre
-  const alertObj = alerts.find(a => a.id === id);
-  if(alertObj) setTimeout(()=>openTradeMonitor(alertObj), 300);
-
-  // Só cobra crédito e inicia trade se >= threshold
-  if(global >= thr){
-    const openAlerts = alerts.filter(a => a.result==='open' && !a.manual);
-    const maxOpen = openAlerts.length>0 ? Math.max(...openAlerts.map(a=>a.score)) : 0;
-    if(openAlerts.length>0 && global<=maxOpen){
-      showToast('tb','⚡','Sinal ativo '+maxOpen+'pts','Aguarde fechar para novo sinal');
-      return;
-    }
-    if(trade && trade.sym===sym && trade.dir!==dir){
-      clearInterval(tradeTimer);
-      setAlertResult(trade.alertId,'closed',price);
-      recordTrade(trade,'closed',price);
-      delete activeTrades[trade.alertId];
-      trade=null; overlay.trail=null;
-    }
-    const ok = await consumeCredit();
-    if(!ok) return;
-    if(soundOn) playBeep(global,'signal');
-    narrateSignal(sym, dir, global, fired, sltp, trendType);
-    startTrade(sym, dir, sltp, tfK);
-  }
-  refreshFocusIfOpen();
-}
-
-
-// ================================================================
-// MODO AUTO/MULTI — só dispara se score >= threshold
-// Gráfico fica limpo até aparecer sinal real
-// ================================================================
-async function doAnalyze(){
-  if(analyzing)return;
-  analyzing=true;
-  const btn=document.getElementById('btn-an')||document.getElementById('btn-analyze');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Analisando...';}
-
-  const sym=document.getElementById('sel-sym').value;
-  const tf=document.getElementById('sel-tf').value;
-  const tfK=TF_KEY[tf]||'M5';
-  const thr=Math.max(50,parseInt(document.getElementById('thr').value)||70);
-
-  try{
-    await Promise.allSettled([loadCandles(),fetchPrice()]);
-    const a=analyzeEngine(sym,tfK);
-    if(!a)throw new Error('Sem dados');
-
-    // Plota overlay no gráfico
-    overlay={entry:a.sltp.entry,sl:a.sltp.sl,tp:a.sltp.tp,be:a.sltp.be,trail:null,isBuy:a.sltp.isBuy,dec:a.sltp.dec};
-    if(typeof drawChart==='function'){if(typeof resizeCanvas==='function')resizeCanvas();drawChart();}
-    if(typeof updateChartBadges==='function')updateChartBadges(a);
-
-    // Cria sinal — cada clique gera um novo
-    const alertObj={
-      id:'al'+Date.now(),sym,tf:tfK,score:a.global,dir:a.dir,
-      sltp:a.sltp,confCount:a.confCount,trendType:a.trendType,
-      time:new Date().toLocaleTimeString('pt-BR'),
-      result:'open',exitPrice:null,manual:a.global<thr
-    };
-    alerts.unshift(alertObj);
-    if(alerts.length>20)alerts.pop();
-    renderAlerts();
-    const cnt=document.getElementById('alert-count');if(cnt)cnt.textContent=alerts.length;
-
-    // Abre monitor de trade
-    if(!trade)openMonitor(alertObj);
-
-    // Narra
-    if(narratorOn){
-      const forca=a.global>=80?'forte':a.global>=65?'moderada':'fraca';
-      narrate((PAIRS[sym]?.vname||sym)+'. '+(a.dir==='BUY'?'Compra':'Venda')+' '+forca+'. Score '+a.global+' pontos. Entrada em '+fpV(a.sltp.entry,a.sltp.dec));
-    }
-
-    // Cobra crédito se confirmado
-    if(a.global>=thr){
-      const ok=await consumeCredit();
-      if(ok){
-        alertObj.manual=false;renderAlerts();
-        toast('⚡ '+(a.dir==='BUY'?'COMPRA':'VENDA')+' '+a.global+'pts — '+sym,'ok');
-      }
-    } else {
-      toast('📊 Análise '+sym+' — '+a.global+'pts (abaixo de '+thr+'pts)','neu');
-    }
-
-  }catch(e){
-    console.error(e);
-    toast('❌ Erro — tente novamente','err');
-  }
-
-  if(btn){btn.disabled=false;btn.innerHTML='▶ Analisar';}
-  analyzing=false;
-}
-
-async function runAutoScan(){
-  const sym=document.getElementById('sel-sym').value;
-  const tf=document.getElementById('sel-tf').value;
-  const tfK=TF_KEY[tf]||'M5';
-  const thr=Math.max(50,parseInt(document.getElementById('thr').value)||70);
-
-  const a=analyzeEngine(sym,tfK);
-  if(!a||a.global<thr) return;
-
-  // Verifica se já tem sinal mais forte aberto
-  const openAuto=alerts.filter(x=>x.result==='open'&&!x.manual);
-  const maxO=openAuto.length>0?Math.max(...openAuto.map(x=>x.score)):0;
-  if(openAuto.length>0&&a.global<=maxO) return;
-
-  // Cobra crédito
-  const ok=await consumeCredit();
-  if(!ok) return;
-
-  // Plota e adiciona alerta
-  overlay={entry:a.sltp.entry,sl:a.sltp.sl,tp:a.sltp.tp,be:a.sltp.be,trail:null,isBuy:a.sltp.isBuy,dec:a.sltp.dec};
-  if(typeof drawChart==='function') drawChart();
-  if(typeof updateChartBadges==='function') updateChartBadges(a);
-
-  const alertObj={
-    id:'al'+Date.now(),sym,tf:tfK,score:a.global,dir:a.dir,
-    sltp:a.sltp,confCount:a.confCount,trendType:a.trendType,
-    time:new Date().toLocaleTimeString('pt-BR'),
-    result:'open',exitPrice:null,manual:false
-  };
-  alerts.unshift(alertObj);
-  if(alerts.length>20) alerts.pop();
-  renderAlerts();
-  const cnt=document.getElementById('alert-count');if(cnt)cnt.textContent=alerts.length;
-
-  if(!trade) openMonitor(alertObj);
-
-  toast('⚡ Auto '+(a.dir==='BUY'?'COMPRA':'VENDA')+' '+a.global+'pts — '+sym,'ok');
-  if(narratorOn) narrate('Setup automático! '+(a.dir==='BUY'?'Compra':'Venda')+' em '+(PAIRS[sym]?.vname||sym)+'. Score '+a.global+' pontos.');
-}
-
-
-
-// Adiciona alerta do modo manual (sempre aparece, com label de qualidade)
-function addAlertManual(sym,tf,score,dir,fired,sltp,price,trendType,qualLabel){
-  // Remove análise manual anterior do mesmo par se existir
-  const existIdx=alerts.findIndex(a=>a.manual&&a.sym===sym);
-  if(existIdx>=0) alerts.splice(existIdx,1);
-
-  const now=new Date();const id='al'+Date.now();
-  alerts.unshift({
-    id,sym,tf,score,dir,fired,sltp,price,trendType,
-    time:now.toLocaleTimeString('pt-BR'),
-    result:'open',exitPrice:null,
-    manual:true, // flag — análise manual
-    qualLabel
-  });
-  if(alerts.length>10)alerts.pop();
-  renderAlerts();
-  document.getElementById('m-al').textContent=alerts.length;
-  document.getElementById('alert-b').textContent=alerts.length;
-}
-
-// Atualiza painel de stats (compartilhado pelos dois modos)
-function updateStatsPanel(sym,tfK,global,trendType,res,thr){
-  document.getElementById('m-ru').textContent=runCount;
-  document.getElementById('m-sy').textContent=PAIRS[sym]?.label||sym;
-  document.getElementById('m-tf2').textContent=tfK;
-  document.getElementById('ct-sym').textContent=PAIRS[sym]?.label||sym;
-  updateHeaderPrice();
-  const scEl=document.getElementById('m-sc');
-  scEl.textContent=global+'pts';
-  scEl.className='mc-val '+(global>=thr?'g':global>=65?'a':'');
-  document.getElementById('m-sc-s').textContent=trendType||(global>=thr?'⚡ Setup!':global>=65?'Aguardando':'Sem setup');
-  document.getElementById('mc0').className='mc'+(global>=thr?' hl':'');
-  let fired=0;STRATS.forEach(s=>{if(res[s.id].signal!=='neutro'&&res[s.id].score>=58)fired++;});
-  document.getElementById('m-st').innerHTML=fired+'<span style="font-size:10px;color:var(--t3)">/13</span>';
-  updateStratMini(res,thr);updateFocusStrats(res,thr);
-  document.getElementById('f-score').textContent=global+'pts';
-  document.getElementById('f-score').className='fscore-val '+(global>=thr?'g':global>=65?'a':'');
-  document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup forte!':global>=65?'Aguardando...':'Sem setup';
-  document.getElementById('f-fired').textContent=fired+' confluências';
-}
-function updateBadges(dir,sltp,score,trendType){
-  const d=sltp.dec;let h=`<span class="cbadge ${dir==='BUY'?'cb-dir-b':'cb-dir-s'}">${dir}</span>`;
-  h+=`<span class="cbadge cb-sc">Score ${score}pts</span>`;h+=`<span class="cbadge cb-ent">ENT ${fp(sltp.entry,d)}</span>`;h+=`<span class="cbadge cb-sl">SL ${fp(sltp.sl,d)}</span>`;h+=`<span class="cbadge cb-tp">TP ${fp(sltp.tp,d)}</span>`;h+=`<span class="cbadge cb-be">BE ${fp(sltp.beLevel,d)}</span>`;
-  if(trendType)h+=`<span class="cbadge" style="background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)">${trendType}</span>`;
-  document.getElementById('ct-badges').innerHTML=h;
-}
-
-// ================================================================
-// ALERTS
-// ================================================================
-function addAlert(sym,tf,score,dir,fired,sltp,price,trendType){
-  // Só aceita sinais automáticos (não manuais) acima dos abertos
-  const openAuto = alerts.filter(a=>a.result==='open'&&!a.manual);
-  if(openAuto.length>0){
-    const maxScore = Math.max(...openAuto.map(a=>a.score));
-    if(score<=maxScore) return false;
-  }
-  const now=new Date(); const id='al'+Date.now();
-  alerts.unshift({id,sym,tf,score,dir,fired,sltp,price,trendType,
-    time:now.toLocaleTimeString('pt-BR'),result:'open',exitPrice:null,manual:false});
-  if(alerts.length>10)alerts.pop();
-  renderAlerts();
-  document.getElementById('m-al').textContent=alerts.length;
-  document.getElementById('alert-b').textContent=alerts.length;
-  return true;
-}
-function setAlertResult(id,result,exitPrice){
-  const a=alerts.find(x=>x.id===id);
-  if(a){
-    a.result=result;
-    a.exitPrice=exitPrice;
-    renderAlerts();
-    // Atualiza badge do contador
-    const open=alerts.filter(x=>x.result==='open').length;
-    document.getElementById('alert-b').textContent=alerts.length;
-  }
-}
-
-// ================================================================
-// CARREGAR ALERTA NO GRÁFICO AO CLICAR
-// ================================================================
-let activeAlertId = null;
-
-function loadAlertOnChart(id){
-  const a = alerts.find(x=>x.id===id);
-  if(!a || a.result!=='open') return;
-  const s = a.sltp;
-
-  // Remove destaque anterior
-  document.querySelectorAll('.ac.active-overlay').forEach(el=>{
-    el.classList.remove('active-overlay');
-    const h=document.getElementById('hint-'+el.id);
-    if(h){h.textContent='👆 Clique para ver no gráfico';h.className='ac-click-hint';}
-  });
-
-  // Destaca o sinal clicado
-  const card=document.getElementById(id);
-  if(card){
-    card.classList.add('active-overlay');
-    const h=document.getElementById('hint-'+id);
-    if(h){h.textContent='✅ Níveis carregados no gráfico';h.className='ac-click-hint active';}
-  }
-
-  // Carrega overlay no gráfico
-  overlay={
-    entry:s.entry, sl:s.sl, tp:s.tp,
-    be:s.beLevel, trail:s.trailLevel,
-    isBuy:s.isBuy, dec:s.dec
-  };
-  activeAlertId=id;
-
-  // Atualiza símbolo se diferente
-  const symSel=document.getElementById('sel-sym');
-  if(symSel.value!==a.sym){
-    symSel.value=a.sym;
-    onParChange();
-  }
-
-  drawChart();
-  if(focusMode) updateFocusPanel();
-
-  // Scroll para o topo para ver o gráfico
-  document.querySelector('.chart-panel').scrollIntoView({behavior:'smooth',block:'start'});
-
-  // Toast
-  showToast('ts','📊',`Níveis de ${a.sym} carregados`,
-    `ENT ${fp(s.entry,s.dec)} · SL ${fp(s.sl,s.dec)} · TP ${fp(s.tp,s.dec)}`);
-
-  // Narra se narrador ativo
-  if(narratorOn){
-    const dir=a.dir==='BUY'?'compra':'venda';
-    speak(`Sinal de ${dir} carregado. Entrada em ${fpVoice(s.entry,s.dec)}. Stop em ${fpVoice(s.sl,s.dec)}. Alvo em ${fpVoice(s.tp,s.dec)}.`,true);
-  }
-}
-
-
-function openTradeMonitor(a){
-  if(!a) return;
-  const s=a.sltp;
-  overlay={entry:s.entry,sl:s.sl,tp:s.tp,be:s.beLevel,trail:s.trailLevel||null,isBuy:s.isBuy,dec:s.dec};
-  drawChart();
-  const g=id=>document.getElementById(id);
-  g('tm').className='tm vis';
-  g('tm-sym').textContent=a.sym+' '+a.dir;
-  g('tm-en').textContent=fp(s.entry,s.dec);
-  g('tm-sl').textContent=fp(s.sl,s.dec);
-  g('tm-tp').textContent=fp(s.tp,s.dec);
-  if(g('be-lbl')) g('be-lbl').textContent='BE '+fp(s.beLevel,s.dec);
-  if(g('tr-lbl')) g('tr-lbl').textContent='Trail '+fp(s.trailLevel,s.dec);
-  const cur=LIVE[a.sym]?.price||s.entry;
-  const pnl=s.isBuy?(cur-s.entry):(s.entry-cur);
-  const pe=g('tm-pnl');
-  if(pe){pe.textContent=(pnl>=0?'+':'')+fa(Math.abs(pnl),s.dec);pe.className='tm-v '+(pnl>0?'g':pnl<0?'r':'');}
-  document.querySelectorAll('.ac.active-overlay').forEach(el=>el.classList.remove('active-overlay'));
-  document.getElementById(a.id)?.classList.add('active-overlay');
-}
-
-
-// ================================================================
-// PAINEL DE PROBABILIDADE — calcula em tempo real
-// ================================================================
-
-
-
-// ================================================================
+async // ================================================================
 // ANALYZE ENGINE — calcula todos os indicadores e retorna sinal
 // ================================================================
 function analyzeEngine(sym, tfK){
@@ -2232,6 +1882,359 @@ function analyzeEngine(sym, tfK){
   };
 }
 
+function runAnalysis(){
+  const sym = document.getElementById('sel-sym').value;
+  const tf  = document.getElementById('sel-tf').value;
+  const tfK = TF_KEY[tf] || 'M5';
+  const thr = parseInt(document.getElementById('thr').value);
+
+  // Atualiza preço e candles
+  if(!LIVE[sym]?.ready || LIVE[sym].price === 0) await fetchAllPrices();
+  const price = LIVE[sym]?.price || 0;
+  if(!price){ showToast('tr2','❌','Preço indisponível', sym); return; }
+  await loadCandles();
+
+  // Calcula scores
+  const {res, global, dir, trendType} = computeScores(sym, tfK);
+  runCount++;
+  updateStatsPanel(sym, tfK, global, trendType, res, thr);
+  updateProbPanel(sym, res, global, dir, price);
+
+  // Calcula níveis
+  const sltp = calcSLTP(sym, dir, global, tf, price);
+  let fired = 0;
+  STRATS.forEach(s=>{ if(res[s.id].signal!=='neutro' && res[s.id].score>=58) fired++; });
+
+  // SEMPRE plota no gráfico
+  overlay = {entry:sltp.entry, sl:sltp.sl, tp:sltp.tp, be:sltp.beLevel, trail:null, isBuy:sltp.isBuy, dec:sltp.dec};
+  drawChart();
+  updateBadges(dir, sltp, global, trendType);
+
+  // SEMPRE adiciona no painel de alertas (substitui análise anterior do mesmo par)
+  const existIdx = alerts.findIndex(a => a.manual && a.sym === sym);
+  if(existIdx >= 0) alerts.splice(existIdx, 1);
+  const id = 'al' + Date.now();
+  alerts.unshift({
+    id, sym, tf:tfK, score:global, dir, fired, sltp, price, trendType,
+    time: new Date().toLocaleTimeString('pt-BR'),
+    result: 'open', exitPrice: null, manual: true
+  });
+  if(alerts.length > 10) alerts.pop();
+  renderAlerts();
+  document.getElementById('m-al').textContent = alerts.length;
+  document.getElementById('alert-b').textContent = alerts.length;
+
+  // Toast sempre
+  showToast('ts','📊', sym+' '+global+'pts — '+dir,
+    'ENT '+fp(sltp.entry,sltp.dec)+' · SL '+fp(sltp.sl,sltp.dec)+' · TP '+fp(sltp.tp,sltp.dec));
+
+  if(narratorOn && global >= 50)
+    speak(PAIRS[sym]?.vname+'. Score '+global+' pontos. '+(dir==='BUY'?'Compra':'Venda')+'. Entrada '+fpVoice(sltp.entry,sltp.dec),false);
+
+  // Abre monitor sempre
+  const alertObj = alerts.find(a => a.id === id);
+  if(alertObj) setTimeout(()=>openTradeMonitor(alertObj), 300);
+
+  // Só cobra crédito e inicia trade se >= threshold
+  if(global >= thr){
+    const openAlerts = alerts.filter(a => a.result==='open' && !a.manual);
+    const maxOpen = openAlerts.length>0 ? Math.max(...openAlerts.map(a=>a.score)) : 0;
+    if(openAlerts.length>0 && global<=maxOpen){
+      showToast('tb','⚡','Sinal ativo '+maxOpen+'pts','Aguarde fechar para novo sinal');
+      return;
+    }
+    if(trade && trade.sym===sym && trade.dir!==dir){
+      clearInterval(tradeTimer);
+      setAlertResult(trade.alertId,'closed',price);
+      recordTrade(trade,'closed',price);
+      delete activeTrades[trade.alertId];
+      trade=null; overlay.trail=null;
+    }
+    const ok = await consumeCredit();
+    if(!ok) return;
+    if(soundOn) playBeep(global,'signal');
+    narrateSignal(sym, dir, global, fired, sltp, trendType);
+    startTrade(sym, dir, sltp, tfK);
+  }
+  refreshFocusIfOpen();
+}
+
+
+// ================================================================
+// MODO AUTO/MULTI — só dispara se score >= threshold
+// Gráfico fica limpo até aparecer sinal real
+// ================================================================
+function runAnalysis(){doAnalyze();}
+async function doAnalyze(){
+  if(analyzing)return;
+  analyzing=true;
+  const btn=document.getElementById('btn-an')||document.getElementById('btn-analyze');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Analisando...';}
+
+  const sym=document.getElementById('sel-sym').value;
+  const tf=document.getElementById('sel-tf').value;
+  const tfK=TF_KEY[tf]||'M5';
+  const thr=Math.max(50,parseInt(document.getElementById('thr').value)||70);
+
+  try{
+    await Promise.allSettled([loadCandles(),fetchPrice()]);
+    const a=analyzeEngine(sym,tfK);
+    if(!a)throw new Error('Sem dados');
+
+    // Plota overlay no gráfico
+    overlay={entry:a.sltp.entry,sl:a.sltp.sl,tp:a.sltp.tp,be:a.sltp.be,trail:null,isBuy:a.sltp.isBuy,dec:a.sltp.dec};
+    if(typeof drawChart==='function'){if(typeof resizeCanvas==='function')resizeCanvas();drawChart();}
+    if(typeof updateChartBadges==='function')updateChartBadges(a);
+
+    // Cria sinal — cada clique gera um novo
+    const alertObj={
+      id:'al'+Date.now(),sym,tf:tfK,score:a.global,dir:a.dir,
+      sltp:a.sltp,confCount:a.confCount,trendType:a.trendType,
+      time:new Date().toLocaleTimeString('pt-BR'),
+      result:'open',exitPrice:null,manual:a.global<thr
+    };
+    alerts.unshift(alertObj);
+    if(alerts.length>20)alerts.pop();
+    renderAlerts();
+    const cnt=document.getElementById('alert-count')||document.getElementById('alert-b');if(cnt)cnt.textContent=alerts.length;
+
+    // Abre monitor de trade
+    if(!trade)openMonitor(alertObj);
+
+    // Narra
+    if(narratorOn){
+      const forca=a.global>=80?'forte':a.global>=65?'moderada':'fraca';
+      narrate((PAIRS[sym]?.vname||sym)+'. '+(a.dir==='BUY'?'Compra':'Venda')+' '+forca+'. Score '+a.global+' pontos. Entrada em '+fpV(a.sltp.entry,a.sltp.dec));
+    }
+
+    // Cobra crédito se confirmado
+    if(a.global>=thr){
+      const ok=await consumeCredit();
+      if(ok){
+        alertObj.manual=false;renderAlerts();
+        toast('⚡ '+(a.dir==='BUY'?'COMPRA':'VENDA')+' '+a.global+'pts — '+sym,'ok');
+      }
+    } else {
+      toast('📊 Análise '+sym+' — '+a.global+'pts (abaixo de '+thr+'pts)','neu');
+    }
+
+  }catch(e){
+    console.error(e);
+    toast('❌ Erro — tente novamente','err');
+  }
+
+  if(btn){btn.disabled=false;btn.innerHTML='▶ Analisar';}
+  analyzing=false;
+}
+
+async function runAutoScan(){
+  const sym=document.getElementById('sel-sym').value;
+  const tf=document.getElementById('sel-tf').value;
+  const tfK=TF_KEY[tf]||'M5';
+  const thr=Math.max(50,parseInt(document.getElementById('thr').value)||70);
+
+  const a=analyzeEngine(sym,tfK);
+  if(!a||a.global<thr) return;
+
+  // Verifica se já tem sinal mais forte aberto
+  const openAuto=alerts.filter(x=>x.result==='open'&&!x.manual);
+  const maxO=openAuto.length>0?Math.max(...openAuto.map(x=>x.score)):0;
+  if(openAuto.length>0&&a.global<=maxO) return;
+
+  // Cobra crédito
+  const ok=await consumeCredit();
+  if(!ok) return;
+
+  // Plota e adiciona alerta
+  overlay={entry:a.sltp.entry,sl:a.sltp.sl,tp:a.sltp.tp,be:a.sltp.be,trail:null,isBuy:a.sltp.isBuy,dec:a.sltp.dec};
+  if(typeof drawChart==='function') drawChart();
+  if(typeof updateChartBadges==='function') updateChartBadges(a);
+
+  const alertObj={
+    id:'al'+Date.now(),sym,tf:tfK,score:a.global,dir:a.dir,
+    sltp:a.sltp,confCount:a.confCount,trendType:a.trendType,
+    time:new Date().toLocaleTimeString('pt-BR'),
+    result:'open',exitPrice:null,manual:false
+  };
+  alerts.unshift(alertObj);
+  if(alerts.length>20) alerts.pop();
+  renderAlerts();
+  const cnt=document.getElementById('alert-count')||document.getElementById('alert-b');if(cnt)cnt.textContent=alerts.length;
+
+  if(!trade) openMonitor(alertObj);
+
+  toast('⚡ Auto '+(a.dir==='BUY'?'COMPRA':'VENDA')+' '+a.global+'pts — '+sym,'ok');
+  if(narratorOn) narrate('Setup automático! '+(a.dir==='BUY'?'Compra':'Venda')+' em '+(PAIRS[sym]?.vname||sym)+'. Score '+a.global+' pontos.');
+}
+
+
+
+// Adiciona alerta do modo manual (sempre aparece, com label de qualidade)
+function addAlertManual(sym,tf,score,dir,fired,sltp,price,trendType,qualLabel){
+  // Remove análise manual anterior do mesmo par se existir
+  const existIdx=alerts.findIndex(a=>a.manual&&a.sym===sym);
+  if(existIdx>=0) alerts.splice(existIdx,1);
+
+  const now=new Date();const id='al'+Date.now();
+  alerts.unshift({
+    id,sym,tf,score,dir,fired,sltp,price,trendType,
+    time:now.toLocaleTimeString('pt-BR'),
+    result:'open',exitPrice:null,
+    manual:true, // flag — análise manual
+    qualLabel
+  });
+  if(alerts.length>10)alerts.pop();
+  renderAlerts();
+  document.getElementById('m-al').textContent=alerts.length;
+  document.getElementById('alert-b').textContent=alerts.length;
+}
+
+// Atualiza painel de stats (compartilhado pelos dois modos)
+function updateStatsPanel(sym,tfK,global,trendType,res,thr){
+  document.getElementById('m-ru').textContent=runCount;
+  document.getElementById('m-sy').textContent=PAIRS[sym]?.label||sym;
+  document.getElementById('m-tf2').textContent=tfK;
+  document.getElementById('ct-sym').textContent=PAIRS[sym]?.label||sym;
+  updateHeaderPrice();
+  const scEl=document.getElementById('m-sc');
+  scEl.textContent=global+'pts';
+  scEl.className='mc-val '+(global>=thr?'g':global>=65?'a':'');
+  document.getElementById('m-sc-s').textContent=trendType||(global>=thr?'⚡ Setup!':global>=65?'Aguardando':'Sem setup');
+  document.getElementById('mc0').className='mc'+(global>=thr?' hl':'');
+  let fired=0;STRATS.forEach(s=>{if(res[s.id].signal!=='neutro'&&res[s.id].score>=58)fired++;});
+  document.getElementById('m-st').innerHTML=fired+'<span style="font-size:10px;color:var(--t3)">/13</span>';
+  updateStratMini(res,thr);updateFocusStrats(res,thr);
+  document.getElementById('f-score').textContent=global+'pts';
+  document.getElementById('f-score').className='fscore-val '+(global>=thr?'g':global>=65?'a':'');
+  document.getElementById('f-score-sub').textContent=global>=thr?'⚡ Setup forte!':global>=65?'Aguardando...':'Sem setup';
+  document.getElementById('f-fired').textContent=fired+' confluências';
+}
+function updateBadges(dir,sltp,score,trendType){
+  const d=sltp.dec;let h=`<span class="cbadge ${dir==='BUY'?'cb-dir-b':'cb-dir-s'}">${dir}</span>`;
+  h+=`<span class="cbadge cb-sc">Score ${score}pts</span>`;h+=`<span class="cbadge cb-ent">ENT ${fp(sltp.entry,d)}</span>`;h+=`<span class="cbadge cb-sl">SL ${fp(sltp.sl,d)}</span>`;h+=`<span class="cbadge cb-tp">TP ${fp(sltp.tp,d)}</span>`;h+=`<span class="cbadge cb-be">BE ${fp(sltp.beLevel,d)}</span>`;
+  if(trendType)h+=`<span class="cbadge" style="background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)">${trendType}</span>`;
+  document.getElementById('ct-badges').innerHTML=h;
+}
+
+// ================================================================
+// ALERTS
+// ================================================================
+function addAlert(sym,tf,score,dir,fired,sltp,price,trendType){
+  // Só aceita sinais automáticos (não manuais) acima dos abertos
+  const openAuto = alerts.filter(a=>a.result==='open'&&!a.manual);
+  if(openAuto.length>0){
+    const maxScore = Math.max(...openAuto.map(a=>a.score));
+    if(score<=maxScore) return false;
+  }
+  const now=new Date(); const id='al'+Date.now();
+  alerts.unshift({id,sym,tf,score,dir,fired,sltp,price,trendType,
+    time:now.toLocaleTimeString('pt-BR'),result:'open',exitPrice:null,manual:false});
+  if(alerts.length>10)alerts.pop();
+  renderAlerts();
+  document.getElementById('m-al').textContent=alerts.length;
+  document.getElementById('alert-b').textContent=alerts.length;
+  return true;
+}
+function setAlertResult(id,result,exitPrice){
+  const a=alerts.find(x=>x.id===id);
+  if(a){
+    a.result=result;
+    a.exitPrice=exitPrice;
+    renderAlerts();
+    // Atualiza badge do contador
+    const open=alerts.filter(x=>x.result==='open').length;
+    document.getElementById('alert-b').textContent=alerts.length;
+  }
+}
+
+// ================================================================
+// CARREGAR ALERTA NO GRÁFICO AO CLICAR
+// ================================================================
+let activeAlertId = null;
+
+function loadAlertOnChart(id){
+  const a = alerts.find(x=>x.id===id);
+  if(!a || a.result!=='open') return;
+  const s = a.sltp;
+
+  // Remove destaque anterior
+  document.querySelectorAll('.ac.active-overlay').forEach(el=>{
+    el.classList.remove('active-overlay');
+    const h=document.getElementById('hint-'+el.id);
+    if(h){h.textContent='👆 Clique para ver no gráfico';h.className='ac-click-hint';}
+  });
+
+  // Destaca o sinal clicado
+  const card=document.getElementById(id);
+  if(card){
+    card.classList.add('active-overlay');
+    const h=document.getElementById('hint-'+id);
+    if(h){h.textContent='✅ Níveis carregados no gráfico';h.className='ac-click-hint active';}
+  }
+
+  // Carrega overlay no gráfico
+  overlay={
+    entry:s.entry, sl:s.sl, tp:s.tp,
+    be:s.beLevel, trail:s.trailLevel,
+    isBuy:s.isBuy, dec:s.dec
+  };
+  activeAlertId=id;
+
+  // Atualiza símbolo se diferente
+  const symSel=document.getElementById('sel-sym');
+  if(symSel.value!==a.sym){
+    symSel.value=a.sym;
+    onParChange();
+  }
+
+  drawChart();
+  if(focusMode) updateFocusPanel();
+
+  // Scroll para o topo para ver o gráfico
+  document.querySelector('.chart-panel').scrollIntoView({behavior:'smooth',block:'start'});
+
+  // Toast
+  showToast('ts','📊',`Níveis de ${a.sym} carregados`,
+    `ENT ${fp(s.entry,s.dec)} · SL ${fp(s.sl,s.dec)} · TP ${fp(s.tp,s.dec)}`);
+
+  // Narra se narrador ativo
+  if(narratorOn){
+    const dir=a.dir==='BUY'?'compra':'venda';
+    speak(`Sinal de ${dir} carregado. Entrada em ${fpVoice(s.entry,s.dec)}. Stop em ${fpVoice(s.sl,s.dec)}. Alvo em ${fpVoice(s.tp,s.dec)}.`,true);
+  }
+}
+
+
+function openTradeMonitor(a){
+  if(!a) return;
+  const s=a.sltp;
+  overlay={entry:s.entry,sl:s.sl,tp:s.tp,be:s.beLevel,trail:s.trailLevel||null,isBuy:s.isBuy,dec:s.dec};
+  drawChart();
+  const g=id=>document.getElementById(id);
+  g('tm').className='tm vis';
+  g('tm-sym').textContent=a.sym+' '+a.dir;
+  g('tm-en').textContent=fp(s.entry,s.dec);
+  g('tm-sl').textContent=fp(s.sl,s.dec);
+  g('tm-tp').textContent=fp(s.tp,s.dec);
+  if(g('be-lbl')) g('be-lbl').textContent='BE '+fp(s.beLevel,s.dec);
+  if(g('tr-lbl')) g('tr-lbl').textContent='Trail '+fp(s.trailLevel,s.dec);
+  const cur=LIVE[a.sym]?.price||s.entry;
+  const pnl=s.isBuy?(cur-s.entry):(s.entry-cur);
+  const pe=g('tm-pnl');
+  if(pe){pe.textContent=(pnl>=0?'+':'')+fa(Math.abs(pnl),s.dec);pe.className='tm-v '+(pnl>0?'g':pnl<0?'r':'');}
+  document.querySelectorAll('.ac.active-overlay').forEach(el=>el.classList.remove('active-overlay'));
+  document.getElementById(a.id)?.classList.add('active-overlay');
+}
+
+
+// ================================================================
+// PAINEL DE PROBABILIDADE — calcula em tempo real
+// ================================================================
+
+
+
+
+
 function updateProbDisplay(d){
   const g=id=>document.getElementById(id);
   const{buyPct,sellPct,global,confCount,rsi,macdBull,emaBull,emaBear,adx,bbPos,stK,aboveVwap,atrPct,volUp}=d;
@@ -2274,6 +2277,20 @@ function clickSignal(id){
   if(!trade) openMonitor(a);
 }
 
+function updateChartBadges(a){
+  const el=document.getElementById('chart-badges');
+  if(!el||!a)return;
+  const isBuy=a.dir==='BUY';
+  const s=a.sltp;
+  el.innerHTML=
+    '<span class="cbadge '+(isBuy?'cb-buy':'cb-sell')+'">'+(isBuy?'▲ BUY':'▼ SELL')+'</span>'+
+    '<span class="cbadge cb-score">'+a.global+'pts</span>'+
+    '<span class="cbadge cb-info">ENT '+fp(s.entry,s.dec)+'</span>'+
+    '<span class="cbadge" style="background:var(--rb);color:var(--r);border:1px solid var(--rbd)">SL '+fp(s.sl,s.dec)+'</span>'+
+    '<span class="cbadge" style="background:var(--gb);color:var(--g);border:1px solid var(--gbd)">TP '+fp(s.tp,s.dec)+'</span>'+
+    (a.trendType?'<span class="cbadge cb-info">'+a.trendType+'</span>':'');
+}
+
 function openMonitor(a){
   const s=a.sltp;
   if(!s||!s.entry) return;
@@ -2292,11 +2309,11 @@ function openMonitor(a){
 }
 
 function renderAlerts(){
-  const el=document.getElementById('alerts-list');
-  const cnt=document.getElementById('alert-count');
+  const el=document.getElementById('alerts-list')||document.getElementById('alerts-scr');
+  const cnt=document.getElementById('alert-count')||document.getElementById('alert-b');
   if(cnt) cnt.textContent=alerts.length;
   if(!alerts.length){
-    el.innerHTML='<div style="text-align:center;padding:24px 0;font-family:var(--mono);font-size:10px;color:var(--t3)">Nenhum sinal ainda<br>Clique em Analisar</div>';
+    el.innerHTML='<div class="no-al">◈<br>Nenhum sinal ainda<br>Clique em Analisar</div>';
     return;
   }
   el.innerHTML=alerts.map(a=>{
