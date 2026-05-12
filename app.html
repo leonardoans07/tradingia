@@ -520,10 +520,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
     </div>
   </div>
   <div class="hdr-r">
-    <span class="api-b" id="api-b">⬤ Conectando...</span>
-    <a href="auth.html" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:8px;border:1px solid var(--goldbd);background:var(--goldb);color:var(--gold);text-decoration:none" id="credits-display">entrar</a>
+    <span class="api-b" id="api-b">⬤ API Live</span>
+    <a href="auth.html" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:8px;border:1px solid var(--goldbd);background:var(--goldb);color:var(--gold);text-decoration:none" id="credits-display">Creditos</a>
     <button class="icobtn" id="snd-btn">🔔</button>
-    <div class="live-pill"><div class="dot"></div><span id="live-lbl">Iniciando...</span></div>
+    <div class="live-pill"><div class="dot"></div><span id="live-lbl">Precos reais Binance</span></div>
     <div class="clk" id="clk">--:--:--</div>
   </div>
 </div>
@@ -1213,18 +1213,16 @@ let _sb = null;
 let _currentUser = null;
 let _userCredits = 0;
 
-async function initSupabase(){
+async function async function initSupabase(){
   try{
-    const { createClient } = supabase;
-    _sb = createClient(_SB_URL, _SB_KEY);
-    const { data:{ session } } = await _sb.auth.getSession();
-    if(session?.user){
-      _currentUser = session.user;
-      await loadCredits();
-      updateCreditsUI();
-    }
-  }catch(e){ console.log('Supabase não carregado, modo livre ativo'); }
+    const{createClient}=supabase;
+    _sb=createClient(_SB_URL,_SB_KEY);
+    const{data:{session}}=await _sb.auth.getSession();
+    if(session?.user){_currentUser=session.user;await loadCredits();}
+    updateCreditsUI();
+  }catch(e){updateCreditsUI();}
 }
+
 
 async function loadCredits(){
   if(!_sb||!_currentUser) return;
@@ -1261,24 +1259,16 @@ async function consumeCredit(){
 
 function updateCreditsUI(){
   const el=document.getElementById('credits-display');
-  if(!el)return;
+  if(!el) return;
   if(!_currentUser){
-    el.innerHTML='<a href="auth.html" style="color:var(--t2);text-decoration:none">⚡ Entrar</a>';
+    el.textContent='-- sinais';
+    el.style.color='var(--gold)';
     return;
   }
-  el.textContent=_userCredits+' sinal'+((_userCredits!==1)?'is':'');
-  el.style.color=_userCredits>20?'var(--gold)':_userCredits>5?'var(--a)':'var(--r)';
+  el.textContent=_userCredits+' sinal'+(_userCredits!==1?'is':'');
+  el.style.color='var(--gold)';
 }
 
-
-// ================================================================
-// MULTI-SCANNER — analisa 6 pares simultaneamente
-// ================================================================
-let multiMode = false;
-let multiTimer = null;
-let multiResults = {}; // { sym: {score, dir, fired, lastSignal} }
-
-// Inicializa cards do multi-grid
 function buildMultiGrid(){
   const grid = document.getElementById('multi-grid');
   if(!grid) return;
@@ -1436,6 +1426,7 @@ function updateMultiPrices(){
 
 
 function init(){
+  setTimeout(()=>{const a=document.getElementById("api-b");if(a&&a.textContent.includes("Conectando"))a.textContent="API Live";const b=document.getElementById("live-lbl");if(b&&b.textContent.includes("Iniciando"))b.textContent="Precos reais Binance";},1000);
   initSupabase();
   buildStratMini();
   buildFocusStrats();
