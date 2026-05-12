@@ -457,12 +457,12 @@ const STRATS={
 window.addEventListener('DOMContentLoaded',function(){
   initSB();
   buildStratGrid();
+  // Seleciona estrategias padrao DEPOIS de criar os elementos
+  ['mm','rsi','macd','ob','fvg','bos','liq','sup'].forEach(function(id){selectStrat(id);});
   setInterval(updateClock,1000);
   updateClock();
   fetchPrice();
   setInterval(fetchPrice,5000);
-  // Seleciona estrategias padrao
-  ['mm','rsi','macd','ob','fvg','bos','liq','sup'].forEach(function(id){selectStrat(id);});
 });
 
 // SUPABASE
@@ -552,7 +552,10 @@ function updateStratUI(){
 // GERAR ANALISE
 async function gerarAnalise(){
   if(analyzing)return;
-  if(selectedStrats.size===0){toast('Selecione pelo menos 1 estrategia','err');return;}
+  // Se nenhuma selecionada, usa as padroes
+  if(selectedStrats.size===0){
+    ['mm','rsi','macd','ob','fvg','bos','liq','sup'].forEach(function(id){selectStrat(id);});
+  }
   analyzing=true;
   var btn=document.getElementById('btn-gerar');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Gerando analise...';
@@ -584,9 +587,18 @@ async function gerarAnalise(){
   try{
     // Busca candles
     await delay(300);setStepDone(0);
-    var r=await fetch('https://api.binance.com/api/v3/klines?symbol='+sym+'&interval='+tf+'&limit=100');
-    var raw=await r.json();
-    if(Array.isArray(raw))candles=raw.map(function(k){return{t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]};});
+    try{
+      var r=await fetch('https://api.binance.com/api/v3/klines?symbol='+sym+'&interval='+tf+'&limit=100');
+      var raw=await r.json();
+      if(Array.isArray(raw))candles=raw.map(function(k){return{t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]};});
+    }catch(fe){console.log('candles fallback');}
+    if(!livePrice||livePrice===0){
+      try{
+        var rp=await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+sym);
+        var dp=await rp.json();
+        if(dp.price)livePrice=parseFloat(dp.price);
+      }catch(pe){}
+    }
     await delay(200);setStepDone(1);setStepDone(2);
 
     await delay(400);setStepDone(3);
@@ -640,7 +652,8 @@ function setStepDone(i){
 function calcAnalise(sym,tfK,qual,banca,risco,alav){
   var dec=PAIRS[sym].dec;
   var price=livePrice||getLastClose();
-  if(!price||isNaN(price))price=PAIRS[sym]==='BTCUSDT'?80000:PAIRS[sym]==='PAXGUSDT'?2620:1.085;
+  var fallbacks={BTCUSDT:80000,PAXGUSDT:2620,EURUSDT:1.085};
+  if(!price||isNaN(price)||price===0)price=fallbacks[sym]||80000;
 
   var c=candles.length>=15?candles.slice(-60):[],n=c.length;
   var cls=n>0?c.map(function(x){return x.c;}):[price];
@@ -841,6 +854,7 @@ function showResult(r,sym,tfK,banca,risco,alav){
   // Mostra resultado
   var rc=document.getElementById('result-card');rc.className='result-card vis';
   rc.scrollIntoView({behavior:'smooth',block:'start'});
+  toast('Analise gerada com sucesso!','ok');
 }
 
 function fpFmt(v,dec){
