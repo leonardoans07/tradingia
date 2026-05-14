@@ -164,6 +164,18 @@ body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(
 @keyframes ti{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media(max-width:900px){.res-layout{grid-template-columns:1fr}.res-right{border-top:1px solid var(--b)}.chart-area-res{min-height:300px}.strat-grid{grid-template-columns:repeat(2,1fr)}.metrics-row{grid-template-columns:1fr 1fr}.res-inds{grid-template-columns:repeat(2,1fr)}}
+/* CLAUDE AI PANEL */
+.claude-panel{margin:12px 0 0;background:linear-gradient(135deg,rgba(255,215,0,.04),rgba(0,232,150,.03));border:1px solid rgba(255,215,0,.2);border-radius:12px;overflow:hidden}
+.claude-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(255,215,0,.12);background:rgba(255,215,0,.04)}
+.claude-hdr-ico{width:28px;height:28px;background:linear-gradient(135deg,#ffd700,#00e896);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#000;flex-shrink:0}
+.claude-hdr-label{font-size:12px;font-weight:700;color:var(--gold)}
+.claude-hdr-sub{font-family:var(--mono);font-size:9px;color:var(--t3);margin-left:auto}
+.claude-body{padding:14px 16px}
+.claude-text{font-size:13px;line-height:1.75;color:var(--t2);white-space:pre-wrap}
+.claude-loading{display:flex;align-items:center;gap:10px;padding:14px 16px;font-family:var(--mono);font-size:11px;color:var(--t3)}
+.claude-spinner{width:14px;height:14px;border:2px solid rgba(255,215,0,.2);border-top-color:var(--gold);border-radius:50%;animation:cspin .8s linear infinite}
+@keyframes cspin{to{transform:rotate(360deg)}}
+.claude-error{padding:14px 16px;font-family:var(--mono);font-size:11px;color:var(--r)}
 </style>
 </head>
 <body>
@@ -340,6 +352,17 @@ body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(
 <script>
 const SB_URL='https://dlgzpgqnadlqvmaymzep.supabase.co';
 const SB_KEY='sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
+  <div class="claude-panel" id="claude-panel">
+    <div class="claude-hdr">
+      <div class="claude-hdr-ico">C</div>
+      <span class="claude-hdr-label">Analise Claude AI</span>
+      <span class="claude-hdr-sub" id="claude-time"></span>
+    </div>
+    <div id="claude-content" class="claude-loading">
+      <div class="claude-spinner"></div>
+      Aguardando analise...
+    </div>
+  </div>
 const PAIRS={
   BTCUSDT:{dec:2,label:'Bitcoin (BTC)',short:'BTC/USDT'},
   ETHUSDT:{dec:2,label:'Ethereum (ETH)',short:'ETH/USDT'},
@@ -549,6 +572,7 @@ function buildSteps(steps){
   });
   el.innerHTML=out;
 }
+  callClaudeAnalysis(result);
 function setStepActive(i){
   var el=document.getElementById('stp-'+i);var ic=document.getElementById('stp-ico-'+i);
   if(el)el.className='step active';if(ic)ic.textContent='...';
@@ -1115,3 +1139,37 @@ function toast(msg,type){
 </script>
 </body>
 </html>
+
+async function callClaudeAnalysis(r) {
+  var panel = document.getElementById('claude-content');
+  var timeEl = document.getElementById('claude-time');
+  if (!panel) return;
+  panel.className = 'claude-loading';
+  panel.innerHTML = '<div class="claude-spinner"></div> A consultar Claude AI...';
+  try {
+    var resp = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {'content-type':'application/json'},
+      body: JSON.stringify({data:{
+        sym:r.sym,tfK:r.tfK,dir:r.dir,score:r.score,forca:r.forca,
+        rsi:r.rsi,macdBull:r.macdBull,emaBull:r.emaBull,emaBear:r.emaBear,
+        stK:r.stK,aboveVwap:r.aboveVwap,bbPos:r.bbPos,
+        confOn:r.confOn,confTotal:r.confTotal,trendLabel:r.trendLabel,
+        trendStr:r.trendStr,price:r.price,zona:r.zona,invalid:r.invalid,
+        alvo:r.alvo,rr:r.rr
+      }})
+    });
+    var data = await resp.json();
+    if (data.analysis) {
+      panel.className = 'claude-body';
+      panel.innerHTML = '<div class="claude-text">' + data.analysis.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+      if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('pt-BR');
+    } else {
+      panel.className = 'claude-error';
+      panel.textContent = 'Erro: ' + (data.error || 'Resposta inesperada');
+    }
+  } catch(e) {
+    panel.className = 'claude-error';
+    panel.textContent = 'Erro ao conectar com Claude AI: ' + e.message;
+  }
+}
