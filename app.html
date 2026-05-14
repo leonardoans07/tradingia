@@ -341,18 +341,7 @@ body::before{content:"";position:fixed;inset:0;background-image:linear-gradient(
         </div>
       </div>
     </div>
-    <div class="res-footer">
-      <div style="font-family:var(--mono);font-size:9px;color:var(--t3)">Analise gerada - <span style="color:var(--gold)" id="res-cost">1 sinal debitado</span></div>
-      <button class="btn-nova" onclick="novaAnalise()">+ Nova Analise</button>
-    </div>
-  </div>
-</div>
-<div class="toasts" id="toasts"></div>
-
-<script>
-const SB_URL='https://dlgzpgqnadlqvmaymzep.supabase.co';
-const SB_KEY='sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
-  <div class="claude-panel" id="claude-panel">
+      <div class="claude-panel" id="claude-panel">
     <div class="claude-hdr">
       <div class="claude-hdr-ico">C</div>
       <span class="claude-hdr-label">Analise Claude AI</span>
@@ -363,6 +352,17 @@ const SB_KEY='sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
       Aguardando analise...
     </div>
   </div>
+  <div class="res-footer">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--t3)">Analise gerada - <span style="color:var(--gold)" id="res-cost">1 sinal debitado</span></div>
+      <button class="btn-nova" onclick="novaAnalise()">+ Nova Analise</button>
+    </div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const SB_URL='https://dlgzpgqnadlqvmaymzep.supabase.co';
+const SB_KEY='sb_publishable_w9p6kuomsL6uNteFLiA-Ow_TE0QBoz9';
 const PAIRS={
   BTCUSDT:{dec:2,label:'Bitcoin (BTC)',short:'BTC/USDT'},
   ETHUSDT:{dec:2,label:'Ethereum (ETH)',short:'ETH/USDT'},
@@ -552,6 +552,7 @@ async function gerarAnalise(){
     pc.className='prog-card';
     lastResult=result;
     showResult(result,sym,tfK,banca,risco,alav);
+  callClaudeAnalysis(result);
 
   }catch(e){
     pc.className='prog-card';
@@ -572,7 +573,6 @@ function buildSteps(steps){
   });
   el.innerHTML=out;
 }
-  callClaudeAnalysis(result);
 function setStepActive(i){
   var el=document.getElementById('stp-'+i);var ic=document.getElementById('stp-ico-'+i);
   if(el)el.className='step active';if(ic)ic.textContent='...';
@@ -1129,16 +1129,6 @@ function buildConfs(isBuy){
 }
 
 function fp(v,dec){if(!v||isNaN(v))return '--';return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});}
-function fpFmt(v,dec){if(!v||isNaN(v))return '--';return Number(v).toFixed(dec);}
-
-function toast(msg,type){
-  type=type||'neu';var c=document.getElementById('toasts'),id='t'+Date.now();
-  var d=document.createElement('div');d.className='toast '+type;d.id=id;d.textContent=msg;
-  c.appendChild(d);setTimeout(function(){var e=document.getElementById(id);if(e)e.remove();},4000);
-}
-</script>
-</body>
-</html>
 
 async function callClaudeAnalysis(r) {
   var panel = document.getElementById('claude-content');
@@ -1173,3 +1163,14 @@ async function callClaudeAnalysis(r) {
     panel.textContent = 'Erro ao conectar com Claude AI: ' + e.message;
   }
 }
+
+function fpFmt(v,dec){if(!v||isNaN(v))return '--';return Number(v).toFixed(dec);}
+
+function toast(msg,type){
+  type=type||'neu';var c=document.getElementById('toasts'),id='t'+Date.now();
+  var d=document.createElement('div');d.className='toast '+type;d.id=id;d.textContent=msg;
+  c.appendChild(d);setTimeout(function(){var e=document.getElementById(id);if(e)e.remove();},4000);
+}
+</script>
+</body>
+</html>
